@@ -10,9 +10,6 @@
         "mockery/mockery": "0.9.*"
     },
     "autoload": {
-        "classmap": [
-            "tests/integration/Seriquent/Models"
-        ],
         "psr-4": {
             "Prewk\\": "src/"
         }

@@ -8,7 +8,12 @@ use PHPUnit_Framework_TestCase;
 use Prewk\Seriquent\Models\Custom;
 use Prewk\Seriquent\Models\Foo;
 use Prewk\Seriquent\Models\Root;
-use Symfony\Component\HttpKernel\Tests\Fragment\Bar;
+
+require_once(__DIR__ . "/Seriquent/Models/Foo.php");
+require_once(__DIR__ . "/Seriquent/Models/Bar.php");
+require_once(__DIR__ . "/Seriquent/Models/Root.php");
+require_once(__DIR__ . "/Seriquent/Models/Poly.php");
+require_once(__DIR__ . "/Seriquent/Models/Custom.php");
 
 class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
 {

@@ -1,8 +1,20 @@
 {
     "name": "prewk/seriquent",
     "description": "Eloquent anonymized (de)serialization",
+    "homepage": "http://github.com/prewk/seriquent",
+    "support": {
+      "issues": "http://github.com/prewk/seriquent/issues",
+      "source": "http://github.com/prewk/seriquent"
+    },
     "license": "MIT",
+    "authors": [
+      {
+        "name": "Oskar Thornblad",
+        "email": "oskar.thornblad@gmail.com"
+      }
+    ],
     "require": {
+        "php": ">=5.5.9",
         "illuminate/database": "~5.1",
         "illuminate/container": "~5.1",
         "illuminate/support": "~5.1",

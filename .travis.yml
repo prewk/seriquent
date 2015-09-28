@@ -7,4 +7,9 @@ before_script:
     - composer selfupdate
     - composer install --prefer-source
 
-script: phpunit
+script:
+    - mkdir -p build/logs
+    - phpunit -c phpunit.xml.dist
+
+after_script:
+    - php vendor/bin/coveralls

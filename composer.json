@@ -25,5 +25,8 @@
         "psr-4": {
             "Prewk\\": "src/"
         }
+    },
+    "require-dev": {
+        "satooshi/php-coveralls": "0.6.*"
     }
 }

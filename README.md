@@ -13,7 +13,7 @@ Your database has a `foos` table, belonging to a `qux` table.
 
 `foos` has a one-to-many relation to the `bars` table.
 
-Both `bars` and `qux` have a polymorphic one-to-many relation to the `bazes` table (They are "`bazable`").
+Both `bars` and `qux` have a polymorphic one-to-many relation to the `bazs` table (They are "`bazable`").
 
 ## Database contents
 
@@ -53,7 +53,7 @@ Both `bars` and `qux` have a polymorphic one-to-many relation to the `bazes` tab
 ║ data: ["a", "b", "c"] ║
 ╚═══════════════════════╝
 ╔═════════════════╗╔═════════════════╗╔═════════════════╗
-║ bazes           ║║ bazes           ║║ bazes           ║
+║ bazs            ║║ bazs            ║║ bazs            ║
 ╟─────────────────╢╟─────────────────╢╟─────────────────╢
 ║ id: 5           ║║ id: 6           ║║ id: 7           ║
 ║ bazable_type: 5 ║║ bazable_type: 5 ║║ bazable_type: 5 ║
@@ -71,9 +71,9 @@ Both `bars` and `qux` have a polymorphic one-to-many relation to the `bazes` tab
         { "@id": "@1", "qux": "@7", "name": "Lorem ipsum" }
     ],
     "Bar": [
-        { "@id": "@2", "foo": "@1", "baz": "@3" },
-        { "@id": "@4", "foo": "@1", "baz": "@5" },
-        { "@id": "@6", "foo": "@1", "baz": null }
+        { "@id": "@2", "foo": "@1" },
+        { "@id": "@4", "foo": "@1" },
+        { "@id": "@6", "foo": "@1" }
     ],
     "Baz": [
         { "@id": "@3", "bazable": ["Bar", "@2"] },
@@ -81,7 +81,7 @@ Both `bars` and `qux` have a polymorphic one-to-many relation to the `bazes` tab
         { "@id": "@8", "bazable": ["Qux", "@7"] }
     ],
     "Qux": [
-        { "@id": "@7", "foo": "@1", "bazable": "@8", "data": ["a", "b", "c"] }
+        { "@id": "@7", "data": ["a", "b", "c"] }
     ]
 }
 ````
@@ -107,26 +107,26 @@ class Foo extends Model {
 
 class Bar extends Model {
     public static function getBlueprint() {
-         return ["foo", "bazes"];
+         return ["foo", "bazs"];
     }
     public function foo() { return $this->belongsTo("Foo"); }
-    public function bazes() { return $this->morphMany("Baz", "bazable"); }
+    public function bazs() { return $this->morphMany("Baz", "bazable"); }
 }
 
 class Baz extends Model {
     public static function getBlueprint() {
          return ["bazable"];
     }
-    public function bazable() { $this->morphTo(); }
+    public function bazable() { return $this->morphTo(); }
 }
 
 class Qux extends Model {
     protected $casts = ["data" => "json"];
     public static function getBlueprint() {
-         return ["foo", "bazes"];
+         return ["foo", "bazs", "data"];
     }
     public function foo() { return $this->hasOne("Foo"); }
-    public function bazes() { return $this->morphMany("Baz", "bazable"); }
+    public function bazs() { return $this->morphMany("Baz", "bazable"); }
 }
 
 ````
@@ -145,13 +145,13 @@ use Prewk\Seriquent;
 $seriquent = new Seriquent(app());
 
 // Deserialize from Foo with id 5
-$serialization = $seriquent->deserialize(Foo::findOrFail(5));
+$serialization = $seriquent->serialize(Foo::findOrFail(5));
 
 // Save to disk
 file_put_contents("serialization.json", json_encode($serialization));
 
 // Load from disk
-$serialization = file_get_contents("serialization.json");
+$serialization = json_decode(file_get_contents("serialization.json"), true);
 
 // Deserialize into database
 $results = $seriquent->deserialize($serialization);

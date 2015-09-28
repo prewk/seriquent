@@ -43,6 +43,16 @@ class State
     }
 
     /**
+     * Get current path for debugging purposes
+     *
+     * @return array Path of operations
+     */
+    public function getPath()
+    {
+        return $this->path;
+    }
+
+    /**
      * Push a path string
      *
      * @param mixed $name Path string

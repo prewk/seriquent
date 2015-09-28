@@ -190,9 +190,13 @@ class BookKeeper
     {
         list($morphableFqcn, $referredId) = $morph;
         if (isset($this->books[$referredId])) {
+            // Set the morphable fields
             $model->{$model->$field()->getForeignKey()} = $this->books[$referredId];
             $model->{$model->$field()->getMorphType()} = $morphableFqcn;
         } else {
+            // Set the morphable fields with a placeholder id to circumvent NOT NULL problems
+            $model->{$model->$field()->getForeignKey()} = 0;
+            $model->{$model->$field()->getMorphType()} = $morphableFqcn;
             $this->deferredMorph(get_class($model), $receivingId, $field, $morph);
         }
     }

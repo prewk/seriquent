@@ -292,6 +292,65 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertEquals($custom2->id, $foo->data["custom_ids"][1]);
     }
 
+    public function test_field_conditionals()
+    {
+        // Arrange
+        $serialization = [
+            "Prewk\\Seriquent\\Models\\Root" => [
+                [
+                    "@id" => "@1",
+                    "test" => "",
+                    "bar" => "@4"
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Custom" => [
+                [
+                    "@id" => "@2",
+                    "data" => [],
+                    "id" => null,
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                [
+                    "@id" => "@3",
+                    "test" => "root",
+                    "data" => ["related" => "@1"],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@4",
+                    "test" => "custom",
+                    "data" => ["related" => "@2"],
+                    "root" => "@1",
+                ],
+            ],
+        ];
+
+        $seriquent = new Seriquent(new Container(), [
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                "root",
+                "test",
+                ["data", "test", [
+                    "root" => ["related" => "Prewk\\Seriquent\\Models\\Foo"],
+                    "custom" => ["related" => "Prewk\\Seriquent\\Models\\Custom"],
+                ]],
+            ],
+        ]);
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+
+        // Assert
+        $root = Root::findOrFail($books["@1"]);
+        $custom = Custom::findOrFail($books["@2"]);
+
+        $foo1 = Foo::findOrFail($books["@3"]);
+        $this->assertEquals($root->id, $foo1->data["related"]);
+
+        $foo2 = Foo::findOrFail($books["@4"]);
+        $this->assertEquals($custom->id, $foo2->data["related"]);
+    }
+
     public function test_non_deserializing_entities_serialization()
     {
         // Arrange

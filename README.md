@@ -1,4 +1,4 @@
-# Seriquent [![Build Status](https://travis-ci.org/prewk/seriquent.svg)](https://travis-ci.org/prewk/seriquent)
+# Seriquent [![Build Status](https://travis-ci.org/prewk/seriquent.svg)](https://travis-ci.org/prewk/seriquent) [![Coverage Status](https://coveralls.io/repos/prewk/seriquent/badge.svg?branch=master&service=github)](https://coveralls.io/github/prewk/seriquent?branch=master)
 
 1. __Serialize__ a tree of Eloquent models into a self-referential array with anonymized primary keys
 2. __Deserialize__ it back into the database with new primary keys

@@ -162,3 +162,4 @@ $results = $seriquent->deserialize($serialization);
 # License
 
 MIT
+ 

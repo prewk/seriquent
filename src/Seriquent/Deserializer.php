@@ -176,14 +176,10 @@ class Deserializer
                     if (isset($serializedEntity[$model->getKeyName()])) {
                         // Get database id
                         $dbId = $serializedEntity[$model->getKeyName()];
-                        // Bind the internal id to the primary key
-                        $this->bookKeeper->bind($id, $dbId);
-                        // Blueprints _might_ trigger a callable that does something useful before skipping
+                        
+                        // Set manually
                         $model->id = $dbId;
                         $model->exists = true;
-                        $this->getBlueprint($model, $serializedEntity);
-                        // Skip deserialization for this entity entirely, the item already exists in the database
-                        continue;
                     }
 
                     // Get blueprints for this model
@@ -259,10 +255,12 @@ class Deserializer
 
                     // Handle progress
                     $this->state->incrementProgress();
-                    // Create the database entity
+
+                    // Create/Update the database entity
                     $model->save();
-                    // Report the real db id created
-                    $this->bookKeeper->bind($id, $model->id);
+
+                    // Report the real db id
+                    $this->bookKeeper->bind($id, $model->getKey());
                 }
                 $this->state->pop(); // Debug
             }

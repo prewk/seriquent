@@ -251,10 +251,12 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 [
                     "@id" => "@2",
                     "id" => null, // Set below
+                    "data" => "foo",
                 ],
                 [
                     "@id" => "@3",
                     "id" => null, // Set below
+                    "data" => "bar",
                 ],
             ],
             "Prewk\\Seriquent\\Models\\Foo" => [

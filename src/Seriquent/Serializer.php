@@ -134,7 +134,7 @@ class Serializer
 
         // If blueprint is false, we don't want to serialize at all
         if ($blueprint === false) {
-            return $serializedEntity;
+            return $serialization;
         }
 
         $this->state->push("$fqcn-" . $model->getKey()); // Debug

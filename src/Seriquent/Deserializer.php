@@ -77,7 +77,7 @@ class Deserializer
         foreach ($dotData as $path => $data) {
             $this->state->push($path); // Debug
             // Match only against data that starts with a @
-            if ($data[0] === "@") {
+            if (is_string($data) && strlen($data) > 0 && $data[0] === "@") {
                 // Iterate through the rules and see if any patterns match our data key
                 foreach ($rules as $pattern => $fqcn) {
                     // Match against exact dot pattern or regexp if it starts with a /

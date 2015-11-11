@@ -73,13 +73,18 @@ class Deserializer
     {
         // Convert to dot array
         $dotData = Arr::dot($fieldData);
+
         // Iterate through all of the values
         foreach ($dotData as $path => $data) {
             $this->state->push($path); // Debug
             // Match only against data that starts with a @
             if (is_string($data) && strlen($data) > 0 && $data[0] === "@") {
                 // Iterate through the rules and see if any patterns match our data key
-                foreach ($rules as $pattern => $fqcn) {
+                foreach ($rules as $pattern => $mixed) {
+                    if (is_array($mixed)) {
+                        // [/regexp/ => [/regexp/ => Model]] is only for content search & replace (see further down)
+                        continue;
+                    }
                     // Match against exact dot pattern or regexp if it starts with a /
                     if ($path === $pattern || ($pattern[0] === "/" && preg_match($pattern, $path) === 1)) {
                         // Match - Update (or defer update if needed) the field with the db id
@@ -89,6 +94,70 @@ class Deserializer
                         } else {
                             // It was set directly, update $fieldData with the set value
                             Arr::set($fieldData, $path, Arr::get($model->$field, $path));
+                        }
+                    }
+                }
+            } elseif (is_string($data)) {
+                // Another possibility: we want to match, search & replace refs in text
+                // Iterate through the rules and see if any patterns match in our data string
+                foreach ($rules as $pattern => $mixed) {
+                    if (!is_array($mixed)) {
+                        // [/regexp/ => Model] is only for key => @id matching (see above)
+                        continue;
+                    }
+                    // Match against exact dot pattern or regexp if it starts with a /
+                    if ($path === $pattern || ($pattern[0] === "/" && preg_match($pattern, $path) === 1)) {
+                        // Key match
+                        // Start out with making sure we actually have a string to work on
+                        // @todo
+                        if (!isset($model->$field)) {
+                            $model->$field = $fieldData;
+                        }
+
+                        Arr::set($fieldData, $path, null);
+                        // Match the string against the rules given in the $mixed array
+                        foreach ($mixed as $valuePattern => $fqcn) {
+                            // Fetch all matches
+                            preg_match_all($valuePattern, $data, $matches);
+
+                            // 0 => ["foo=@1", "foo=@2"]
+                            // 1 => ["@1", "@2"]
+                            if (count($matches) !== 2) {
+                                continue;
+                            }
+                            if (count($matches[0]) === 0) {
+                                continue;
+                            }
+
+                            $searchStrings = $matches[0];
+                            $refs = $matches[1];
+
+                            // Filter out dupes and invalids
+                            $uniqueRefs = [];
+                            foreach ($refs as $index => $ref) {
+                                // Ref must not already be matched and must start with a @
+                                if (!isset($uniqueRefs[$ref]) && isset($ref[0]) && $ref[0] === "@") {
+                                    $uniqueRefs[$ref] = true;
+                                } else {
+                                    // Clear from the matches
+                                    unset($refs[$index]);
+                                    unset($searchStrings[$index]);
+                                }
+                            }
+
+                            // Re-set array indices
+                            $refs = array_values($refs);
+                            $searchStrings = array_values($searchStrings);
+
+                            foreach ($refs as $index => $ref) {
+                                $searchString = $searchStrings[$index];
+
+                                // Go through the matches, try to set directly if possible, defer otherwise
+                                if ($this->bookKeeper->searchAndReplace($model, "$field.$path", $receivingId, $searchString, $ref)) {
+                                    // It was set directly, update $fieldData with the set value
+                                    Arr::set($fieldData, $path, Arr::get($model->$field, $path));
+                                }
+                            }
                         }
                     }
                 }

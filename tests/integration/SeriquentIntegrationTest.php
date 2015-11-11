@@ -632,4 +632,85 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertEquals("Four", $foo2Poly->test);
     }
 
+    public function test_search_replace_refs()
+    {
+        // Arrange
+        $serialization = [
+            "Prewk\\Seriquent\\Models\\Root" => [
+                [
+                    "@id" => "@1",
+                    "test" => "Lorem ipsum",
+                    "bar" => "@4",
+                    "special_bar" => "@4",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                [
+                    "@id" => "@2",
+                    "test" => "Foo bar",
+                    "data" => ["content" => "<a href=\"#/links/@4\">Bar</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/@1\">Root</a><a href=\"#/links/@4\">Bar</a>", "bar" => "@4"],
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Bar" => [
+                [
+                    "@id" => "@4",
+                    "test" => "Test test",
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Poly" => [
+                [
+                    "@id" => "@5",
+                    "test" => "One",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@6",
+                    "test" => "Two",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@7",
+                    "test" => "Three",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@2"],
+                ],
+            ],
+        ];
+        $seriquent = new Seriquent(new Container(), [
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                "root",
+                "test",
+                ["data", [
+                    "bar" => "Prewk\\Seriquent\\Models\\Foo",
+                    "content" => [
+                        '/href="#\/links\/(@?\d+)\"/' => "Prewk\\Seriquent\\Models\\Foo",
+                    ],
+                ]],
+            ],
+        ]);
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+        $root = Root::findOrFail($books["@1"]);
+
+        // Assert
+        $foo = Foo::firstOrFail();
+        die;
+
+        // Re-serialize
+        $reserialization = $seriquent->serialize($root);
+
+        // Assert
+        // Compare the serializations
+        // Assert same amount of fqcns
+        $this->assertEquals(count($serialization), count($reserialization));
+        // Iterate and compare
+        foreach ($reserialization as $fqcn => $entities) {
+            // Assert that the same fqcns exist on both arrays
+            $this->assertArrayHasKey($fqcn, $serialization);
+            // Assert that the same amount of entities exist on both arrays for this fqcn
+            $this->assertEquals(count($serialization[$fqcn]), count($entities));
+        }
+    }
 }

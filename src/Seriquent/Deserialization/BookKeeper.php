@@ -44,6 +44,9 @@ class BookKeeper
      *             "morphs" => [
      *                 [<Relation name that morphs to other models>, [<Referenced model's FQCN, Referenced internal id>]]
      *             ],
+     *             "searches" => [
+     *                 [<Field to update, dot notation supported for deep array fields, <String to search for>, <Referenced internal id>]
+     *             ]
      *         ],
      *         <Internal id> => ...
      *         ...
@@ -178,6 +181,28 @@ class BookKeeper
     }
 
     /**
+     * Update by search and replace or defer if needed
+     *
+     * @param Model $model Model with field
+     * @param string $dotField Field name with dot notation depth support (eg. data.foo.bar refers to
+     *                         column 'data', expected to have an array cast, in ["foo" => ["bar" => <Internal id>]] )
+     * @param mixed $receivingId Internal id of the receiving model
+     * @param string $search String to search for which contains $referredId
+     * @param mixed $referredId Internal id of the referenced model
+     * @return bool Returns true if update was immediate, false if it was deferred
+     */
+    public function searchAndReplace(Model $model, $dotField, $receivingId, $search, $referredId)
+    {
+        if (isset($this->books[$referredId])) {
+            $this->searchAndReplaceFieldData($model, $dotField, $referredId, $search, $this->books[$referredId]);
+            return true;
+        } else {
+            $this->deferredSearchAndReplace(get_class($model), $receivingId, $dotField, $search, $referredId, $referredId);
+            return false;
+        }
+    }
+
+    /**
      * Update a polymorphed relation or defer if needed
      *
      * @param Model $model Model with one-to-many relation
@@ -219,6 +244,7 @@ class BookKeeper
                 "associates" => [],
                 "attaches" => [],
                 "morphs" => [],
+                "searches" => [],
             ];
         }
 
@@ -245,11 +271,25 @@ class BookKeeper
      * @param string $fqcn Fully qualified class name
      * @param mixed $receivingId Receiving internal id
      * @param string $field Field to update, dot notation supported
-     * @param mixed $referredId Receiving internal id
+     * @param mixed $referredId Referred internal id
      */
     protected function deferredUpdate($fqcn, $receivingId, $field, $referredId)
     {
         $this->addDeferredAction($fqcn, $receivingId, [$field, $referredId], "updates");
+    }
+
+    /**
+     * Add deferred search and replace action
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param mixed $receivingId Receiving internal id
+     * @param string $field Field to update, dot notation supported
+     * @param string $search
+     * @param mixed $referredId Referred internal id
+     */
+    protected function deferredSearchAndReplace($fqcn, $receivingId, $field, $search, $referredId, $referredId)
+    {
+        $this->addDeferredAction($fqcn, $receivingId, [$field, $search, $referredId], "searches");
     }
 
     /**
@@ -258,7 +298,7 @@ class BookKeeper
      * @param string $fqcn Fully qualified class name
      * @param mixed $receivingId Receiving internal id
      * @param string $field Relation field name
-     * @param mixed $referredId Receiving internal id
+     * @param mixed $referredId Referred internal id
      */
     protected function deferredAssociate($fqcn, $receivingId, $field, $referredId)
     {
@@ -349,6 +389,18 @@ class BookKeeper
                     $this->mergeFieldData($model, $dotField, $referredDbId);
                 }
 
+                // Searches
+                foreach ($deferee["searches"] as $searchee) {
+                    list($dotField, $search, $referredId) = $searchee;
+                    if (!isset($this->books[$referredId])) {
+                        throw new Exception("Expected referred id $referredId to have a db id when updating '$dotField' to a $fqcn model with db id $dbId and internal id $id");
+                    }
+                    $referredDbId = $this->books[$referredId];
+
+                    // Search and replace
+                    $this->searchAndReplaceFieldData($model, $dotField, $referredId, $search, $referredDbId);
+                }
+
                 // Morphs
                 foreach ($deferee["morphs"] as $morphee) {
                     list($field, $morph) = $morphee;
@@ -396,4 +448,38 @@ class BookKeeper
 
         $model->$field = $fieldData;
     }
+
+    /**
+     * Search and replace a resolved db id in a possibly deep array structure's string value
+     * without touching the rest of the field's data
+     *
+     * @param Model $model
+     * @param string $dotField Field name with support for dot notation for array depth
+     * @param mixed $referredId Referred internal id found in the $search string to replace with $referredDbId
+     * @param mixed $search String to search for containing the $referredDbId
+     * @param mixed $referredDbId Referenced internal id to replace with
+     */
+    protected function searchAndReplaceFieldData(Model $model, $dotField, $referredId, $search, $referredDbId)
+    {
+        $dotPos = strpos($dotField, ".");
+        $field = $dotPos === false ? $dotField : substr($dotField, 0, $dotPos);
+        $replacement = str_replace($referredId, $referredDbId, $search);
+
+        if ($field === $dotField) {
+            $fieldData = str_replace($search, $replacement, $model->$field);
+        } else {
+            $fieldData = $model->$field;
+            // foo.bar -> bar
+            $arrayDotPath = substr($dotField, strlen($field) + 1);
+            // Make sure the receiver is an array
+            $fieldData = is_array($fieldData) ? $fieldData : [];
+            // Get current string
+            $subject = Arr::get($fieldData, $arrayDotPath);
+            // Replace occurrences with referred db id
+            Arr::set($fieldData, $arrayDotPath, str_replace($search, $replacement, $subject));
+        }
+
+        $model->$field = $fieldData;
+    }
+
 }

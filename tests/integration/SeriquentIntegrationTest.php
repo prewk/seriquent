@@ -649,7 +649,25 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 [
                     "@id" => "@2",
                     "test" => "Foo bar",
-                    "data" => ["content" => "<a href=\"#/links/@4\">Bar 1</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/@8\">Bar 2</a><a href=\"#/links/@9\">Bar 3</a>", "bar" => "@4"],
+                    "data" => ["content" => "<a href=\"#/links/@8\">linked-1</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/@9\">linked-2</a><a href=\"#/links/@10\">linked-3</a>", "bar" => "@4"],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@8",
+                    "test" => "linked-1",
+                    "data" => [],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@9",
+                    "test" => "linked-2",
+                    "data" => [],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@10",
+                    "test" => "linked-3",
+                    "data" => [],
                     "root" => "@1",
                 ],
             ],
@@ -657,16 +675,6 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 [
                     "@id" => "@4",
                     "test" => "Bar 1",
-                    "root" => "@1",
-                ],
-                [
-                    "@id" => "@8",
-                    "test" => "Bar 2",
-                    "root" => "@1",
-                ],
-                [
-                    "@id" => "@9",
-                    "test" => "Bar 3",
                     "root" => "@1",
                 ],
             ],
@@ -708,9 +716,31 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         // Assert
         $foo = Foo::firstOrFail();
 
-        $this->assertEquals("<a href=\"#/links/1\">Bar 1</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/2\">Bar 2</a><a href=\"#/links/3\">Bar 3</a>", $foo->data["content"]);
+        $this->assertEquals("<a href=\"#/links/2\">linked-1</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/3\">linked-2</a><a href=\"#/links/4\">linked-3</a>", $foo->data["content"]);
 
         // Re-serialize deserialization
+        $serialization = $seriquent->serialize($root);
 
+        // Assert
+        $content = $serialization['Prewk\Seriquent\Models\Foo'][0]["data"]["content"];
+
+        // Get serialized Foos to compare against
+        $compareAgainst = [];
+        foreach ($serialization['Prewk\Seriquent\Models\Foo'] as $foo) {
+            if ($foo["test"] === "linked-1") {
+                $compareAgainst["linked-1"] = $foo["@id"];
+            } else if ($foo["test"] === "linked-2") {
+                $compareAgainst["linked-2"] = $foo["@id"];
+            } else if ($foo["test"] === "linked-3") {
+                $compareAgainst["linked-3"] = $foo["@id"];
+            }
+        }
+
+        // Extract "links"
+        preg_match_all('/href="#\/links\/(@?\d+)\"/', $content, $matches);
+
+        $this->assertEquals($compareAgainst["linked-1"], $matches[1][0]);
+        $this->assertEquals($compareAgainst["linked-2"], $matches[1][1]);
+        $this->assertEquals($compareAgainst["linked-3"], $matches[1][2]);
     }
 }

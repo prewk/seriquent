@@ -71,11 +71,57 @@ class Serializer
             // Only numeric data can be keys @todo
             if (is_numeric($data) && $data > 0) {
                 // Iterate through the rules and see if any patterns match our data key
-                foreach ($rules as $pattern => $fqcn) {
+                foreach ($rules as $pattern => $mixed) {
+                    if (is_array($mixed)) {
+                        // [/regexp/ => [/regexp/ => Model]] is only for content search & replace (see further down)
+                        continue;
+                    }
                     // Match against exact dot pattern or regexp if it starts with a /
                     if ($path === $pattern || ($pattern[0] === "/" && preg_match($pattern, $path) === 1)) {
                         // Match - Replace with an internal id
-                        Arr::set($fieldData, $path, $this->bookKeeper->getId($fqcn, $data));
+                        Arr::set($fieldData, $path, $this->bookKeeper->getId($mixed, $data));
+                    }
+                }
+            } elseif (is_string($data)) {
+                // Another possibility: we want to match, search & replace refs in text
+                // Iterate through the rules and see if any patterns match in our data string
+                foreach ($rules as $pattern => $mixed) {
+                    if (!is_array($mixed)) {
+                        // [/regexp/ => Model] is only for key => @id matching (see above)
+                        continue;
+                    }
+                    // Match against exact dot pattern or regexp if it starts with a /
+                    if ($path === $pattern || ($pattern[0] === "/" && preg_match($pattern, $path) === 1)) {
+                        // Key match
+
+                        // Match the string against the rules given in the $mixed array
+                        foreach ($mixed as $valuePattern => $fqcn) {
+                            // Fetch all matches
+                            preg_match_all($valuePattern, $data, $matches);
+
+                            // 0 => ["foo=1", "foo=2"]
+                            // 1 => ["1", "2"]
+                            if (count($matches) !== 2) {
+                                continue;
+                            }
+                            if (count($matches[0]) === 0) {
+                                continue;
+                            }
+
+                            $searchStrings = $matches[0];
+                            $ids = $matches[1];
+
+                            // Get the field data to work on
+                            $localFieldData = Arr::get($fieldData, $path);
+                            // Iterate through the search strings to replace the ids with internal references
+                            foreach ($searchStrings as $index => $searchString) {
+                                // Create replacement string
+                                $replacement = str_replace($ids[$index], $this->bookKeeper->getId($fqcn, $ids[$index]), $searchString);
+                                // Actually replace the matched id strings with internal ref'd strings
+                                $localFieldData = str_replace($searchString, $replacement, $localFieldData);
+                            }
+                            Arr::set($fieldData, $path, $localFieldData);
+                        }
                     }
                 }
             }

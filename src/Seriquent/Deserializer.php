@@ -118,7 +118,6 @@ class Deserializer
                         foreach ($mixed as $valuePattern => $fqcn) {
                             // Fetch all matches
                             preg_match_all($valuePattern, $data, $matches);
-
                             // 0 => ["foo=@1", "foo=@2"]
                             // 1 => ["@1", "@2"]
                             if (count($matches) !== 2) {

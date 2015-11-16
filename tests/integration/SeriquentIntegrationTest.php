@@ -5,6 +5,7 @@ namespace Prewk;
 use Illuminate\Container\Container;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit_Framework_TestCase;
+use Prewk\Seriquent\Models\Bar;
 use Prewk\Seriquent\Models\Custom;
 use Prewk\Seriquent\Models\Foo;
 use Prewk\Seriquent\Models\Root;
@@ -632,7 +633,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertEquals("Four", $foo2Poly->test);
     }
 
-    public function test_search_replace_refs()
+    public function test_search_replace()
     {
         // Arrange
         $serialization = [
@@ -648,14 +649,24 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 [
                     "@id" => "@2",
                     "test" => "Foo bar",
-                    "data" => ["content" => "<a href=\"#/links/@4\">Bar</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/@1\">Root</a><a href=\"#/links/@4\">Bar</a>", "bar" => "@4"],
+                    "data" => ["content" => "<a href=\"#/links/@4\">Bar 1</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/@8\">Bar 2</a><a href=\"#/links/@9\">Bar 3</a>", "bar" => "@4"],
                     "root" => "@1",
                 ],
             ],
             "Prewk\\Seriquent\\Models\\Bar" => [
                 [
                     "@id" => "@4",
-                    "test" => "Test test",
+                    "test" => "Bar 1",
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@8",
+                    "test" => "Bar 2",
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@9",
+                    "test" => "Bar 3",
                     "root" => "@1",
                 ],
             ],
@@ -696,21 +707,10 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
 
         // Assert
         $foo = Foo::firstOrFail();
-        die;
 
-        // Re-serialize
-        $reserialization = $seriquent->serialize($root);
+        $this->assertEquals("<a href=\"#/links/1\">Bar 1</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/2\">Bar 2</a><a href=\"#/links/3\">Bar 3</a>", $foo->data["content"]);
 
-        // Assert
-        // Compare the serializations
-        // Assert same amount of fqcns
-        $this->assertEquals(count($serialization), count($reserialization));
-        // Iterate and compare
-        foreach ($reserialization as $fqcn => $entities) {
-            // Assert that the same fqcns exist on both arrays
-            $this->assertArrayHasKey($fqcn, $serialization);
-            // Assert that the same amount of entities exist on both arrays for this fqcn
-            $this->assertEquals(count($serialization[$fqcn]), count($entities));
-        }
+        // Re-serialize deserialization
+
     }
 }

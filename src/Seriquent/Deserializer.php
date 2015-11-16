@@ -109,12 +109,11 @@ class Deserializer
                     if ($path === $pattern || ($pattern[0] === "/" && preg_match($pattern, $path) === 1)) {
                         // Key match
                         // Start out with making sure we actually have a string to work on
-                        // @todo
-                        if (!isset($model->$field)) {
+                        if (!is_string($model->$field)) {
+                            // Nope, let's superimpose the blueprint
                             $model->$field = $fieldData;
                         }
 
-                        Arr::set($fieldData, $path, null);
                         // Match the string against the rules given in the $mixed array
                         foreach ($mixed as $valuePattern => $fqcn) {
                             // Fetch all matches

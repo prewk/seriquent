@@ -293,6 +293,7 @@ class Serializer
                 switch ($relationName) {
                     case "HasMany":
                     case "MorphMany":
+                    case "MorphToMany":
                         // Iterate through the related entities
                         foreach ($content as $child) {
                             $serialization = $this->serialize($child, $serialization);

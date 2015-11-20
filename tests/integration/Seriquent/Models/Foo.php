@@ -19,12 +19,23 @@ class Foo extends Model
                 "/custom_ids\\.[\\d]+/" => "Prewk\\Seriquent\\Models\\Custom",
             ]],
             "root",
+            "resources",
         ];
     }
 
     public function root()
     {
         return $this->belongsTo("Prewk\\Seriquent\\Models\\Root");
+    }
+
+    public function resources()
+    {
+        return $this->morphToMany(
+            Resource::class,
+            "referable",
+            "resource_references"
+        )
+            ->withPivot(["created_at", "updated_at"]);
     }
 
     public function polys()

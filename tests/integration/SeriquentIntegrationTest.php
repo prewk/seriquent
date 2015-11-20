@@ -8,6 +8,8 @@ use PHPUnit_Framework_TestCase;
 use Prewk\Seriquent\Models\Bar;
 use Prewk\Seriquent\Models\Custom;
 use Prewk\Seriquent\Models\Foo;
+use Prewk\Seriquent\Models\Resource;
+use Prewk\Seriquent\Models\ResourceReference;
 use Prewk\Seriquent\Models\Root;
 
 require_once(__DIR__ . "/Seriquent/Models/Foo.php");
@@ -15,6 +17,8 @@ require_once(__DIR__ . "/Seriquent/Models/Bar.php");
 require_once(__DIR__ . "/Seriquent/Models/Root.php");
 require_once(__DIR__ . "/Seriquent/Models/Poly.php");
 require_once(__DIR__ . "/Seriquent/Models/Custom.php");
+require_once(__DIR__ . "/Seriquent/Models/Resource.php");
+require_once(__DIR__ . "/Seriquent/Models/ResourceReference.php");
 
 class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
 {
@@ -64,6 +68,20 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
             $table->increments("id");
             $table->unsignedInteger("root_id")->nullable();
             $table->text("data");
+            $table->timestamps();
+        });
+        Capsule::schema()->create("resources", function($table) {
+            $table->increments("id");
+            $table->unsignedInteger("root_id")->nullable();
+            $table->string("name");
+            $table->timestamps();
+        });
+        Capsule::schema()->create("resource_references", function($table) {
+            $table->increments("id");
+            $table->unsignedInteger("root_id")->nullable();
+            $table->unsignedInteger("resource_id");
+            $table->unsignedInteger("referable_id");
+            $table->string("referable_type");
             $table->timestamps();
         });
     }
@@ -212,6 +230,116 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                     "@id" => "@8",
                     "test" => "Four",
                     "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@3"],
+                ],
+            ],
+        ];
+        $seriquent = new Seriquent(new Container());
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+        $root = Root::findOrFail($books["@1"]);
+
+        // Re-serialize
+        $reserialization = $seriquent->serialize($root);
+
+        // Assert
+        // Compare the serializations
+        // Assert same amount of fqcns
+        $this->assertEquals(count($serialization), count($reserialization));
+        // Iterate and compare
+        foreach ($reserialization as $fqcn => $entities) {
+            // Assert that the same fqcns exist on both arrays
+            $this->assertArrayHasKey($fqcn, $serialization);
+            // Assert that the same amount of entities exist on both arrays for this fqcn
+            $this->assertEquals(count($serialization[$fqcn]), count($entities));
+        }
+    }
+
+    public function test_serialize_with_morph_to_many()
+    {
+        // Arrange
+        $serialization = [
+            "Prewk\\Seriquent\\Models\\Root" => [
+                [
+                    "@id" => "@1",
+                    "test" => "Lorem ipsum",
+                    "bar" => "@4",
+                    "special_bar" => "@4",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                [
+                    "@id" => "@2",
+                    "test" => "Foo bar",
+                    "data" => ["a" => 1, "b" => 2, "bar_id" => "@4"],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@3",
+                    "test" => "Baz qux",
+                    "data" => ["c" => 3, "d" => 4],
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Bar" => [
+                [
+                    "@id" => "@4",
+                    "test" => "Test test",
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Poly" => [
+                [
+                    "@id" => "@5",
+                    "test" => "One",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@6",
+                    "test" => "Two",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@7",
+                    "test" => "Three",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@2"],
+                ],
+                [
+                    "@id" => "@8",
+                    "test" => "Four",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@3"],
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Resource" => [
+                [
+                    "@id" => "@9",
+                    "name" => "Resource 1",
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@10",
+                    "name" => "Resource 2",
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\ResourceReference" => [
+                [
+                    "@id" => "@11",
+                    "root" => "@1",
+                    "resource" => "@9",
+                    "referable" => [
+                        "Prewk\\Seriquent\\Models\\Foo",
+                        "@3"
+                    ],
+                ],
+                [
+                    "@id" => "@12",
+                    "root" => "@1",
+                    "resource" => "@10",
+                    "referable" => [
+                        "Prewk\\Seriquent\\Models\\Foo",
+                        "@3"
+                    ],
                 ],
             ],
         ];

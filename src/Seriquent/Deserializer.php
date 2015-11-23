@@ -16,7 +16,7 @@ use Prewk\Seriquent\Deserialization\BookKeeper;
 /**
  * Creates database entities with eloquent models using an array following a specific schema
  */
-class Deserializer implements SeriquentIOInterface
+class Deserializer
 {
     /**
      * @var Container
@@ -63,30 +63,9 @@ class Deserializer implements SeriquentIOInterface
      * @param string $fqcn Fully qualified class name
      * @param mixed $rule Blueprint
      */
-    public function setCustomRule($fqcn, array $rule)
+    public function setCustomRule($fqcn, $rule)
     {
         $this->customRules[$fqcn] = $rule;
-    }
-
-    /**
-     * Constructor
-     *
-     * @param Container $app Laravel container used for resolving models through the IoC
-     * @param BookKeeper $bookKeeper Keeps track of the ids and queues deferred actions
-     * @param State $state Progress and debugging
-     * @param array $customRules Custom model blueprints in the form of Array<FQCN, Blueprint array>
-     */
-    public function x__construct(
-        Container $app,
-        BookKeeper $bookKeeper,
-        State $state,
-        array $customRules = []
-    )
-    {
-        $this->app = $app;
-        $this->bookKeeper = $bookKeeper;
-        $this->state = $state;
-        $this->customRules = $customRules;
     }
 
     /**

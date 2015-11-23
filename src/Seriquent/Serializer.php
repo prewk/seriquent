@@ -15,7 +15,7 @@ use Prewk\Seriquent\Serialization\BookKeeper;
 /**
  * Creates an anonymized array serialization of a hierarchy of eloquent models
  */
-class Serializer implements SeriquentIOInterface
+class Serializer
 {
     /**
      * @var BookKeeper
@@ -54,7 +54,7 @@ class Serializer implements SeriquentIOInterface
      * @param string $fqcn Fully qualified class name
      * @param mixed $rule Blueprint
      */
-    public function setCustomRule($fqcn, array $rule)
+    public function setCustomRule($fqcn, $rule)
     {
         $this->customRules[$fqcn] = $rule;
     }

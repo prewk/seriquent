@@ -11,12 +11,13 @@ use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Container\Container;
 use Prewk\Seriquent;
+use Prewk\Seriquent\Contracts\SeriquentIOInterface;
 use Prewk\Seriquent\Deserialization\BookKeeper;
 
 /**
  * Creates database entities with eloquent models using an array following a specific schema
  */
-class Deserializer
+class Deserializer implements SeriquentIOInterface
 {
     /**
      * @var Container
@@ -38,6 +39,23 @@ class Deserializer
      */
     private $customRules;
 
+    public function __construct(
+        Container $app,
+        BookKeeper $bookKeeper,
+        State $state
+    )
+    {
+        $this->app = $app;
+        $this->bookKeeper = $bookKeeper;
+        $this->state = $state;
+        $this->customRules = [];
+    }
+
+    public function setCustomRule($fqcn, callable $rule)
+    {
+        $this->customRules[$fqcn] = $rule;
+    }
+
     /**
      * Constructor
      *
@@ -46,7 +64,7 @@ class Deserializer
      * @param State $state Progress and debugging
      * @param array $customRules Custom model blueprints in the form of Array<FQCN, Blueprint array>
      */
-    public function __construct(
+    public function x__construct(
         Container $app,
         BookKeeper $bookKeeper,
         State $state,
@@ -336,5 +354,15 @@ class Deserializer
 
         // Resolve all deferred actions and return the book keeping Array<Internal id, Database id>
         return $this->bookKeeper->resolve();
+    }
+
+    /**
+     * Get the state object for debugging
+     *
+     * @return State
+     */
+    public function getState()
+    {
+        return $this->state;
     }
 }

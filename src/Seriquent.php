@@ -7,9 +7,9 @@ namespace Prewk;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Container\Container;
-use Prewk\Seriquent\Deserialization\BookKeeper as DeserBookKeeper;
+use Prewk\Seriquent\Deserialization\BookKeeper as DeserializeBookKeeper;
 use Prewk\Seriquent\Deserializer;
-use Prewk\Seriquent\Serialization\BookKeeper as SerBookKeeper;
+use Prewk\Seriquent\Serialization\BookKeeper as SerializeBookKeeper;
 use Prewk\Seriquent\Serializer;
 use Prewk\Seriquent\State;
 use Closure;
@@ -21,11 +21,6 @@ class Seriquent
 {
     const SERIALIZING = 1;
     const DESERIALIZING = 2;
-
-    /**
-     * @var Container
-     */
-    private $app;
 
     /**
      * @var State
@@ -44,56 +39,60 @@ class Seriquent
     /**
      * Constructor
      *
-     * @param Container $app Laravel container for resolving through the IoC
-     * @param array $customRules Custom model blueprints in the form of Array<FQCN, Blueprint array>
-     * @param State $state Optional state helper object
      * @param Serializer $serializer
      * @param Deserializer $deserializer
      */
     public function __construct(
-        Container $app,
-        array $customRules = [],
-        State $state = null,
-        Serializer $serializer = null,
-        Deserializer $deserializer = null
+        Serializer $serializer,
+        Deserializer $deserializer
     )
     {
-        $this->app = $app;
+        $this->serializer = $serializer;
+        $this->deserializer = $deserializer;
+    }
 
-        if (is_null($state)) {
-            $this->state = new State();
-        } else {
-            $this->state = $state;
-        }
-        if (is_null($serializer)) {
-            $this->serializer = new Serializer(
-                new SerBookKeeper($this->state),
-                $this->state,
-                $customRules
-            );
-        } else {
-            $this->serializer = $serializer;
-        }
-        if (is_null($deserializer)) {
-            $this->deserializer = new Deserializer(
+    /**
+     * Seriquent factory - makes Seriquents out of thin air
+     *
+     * @return Seriquent
+     */
+    public function make()
+    {
+        $app = function_exists("app") ? app() : new Container;
+        $state = new State;
+        $serializer = new Serializer(
+            new SerializeBookKeeper($state),
+            $state
+        );
+
+        $deserializer = new Deserializer(
+            $app,
+            new DeserializeBookKeeper(
                 $app,
-                new DeserBookKeeper($app, $this->state),
-                $this->state,
-                $customRules
-            );
-        } else {
-            $this->deserializer = $deserializer;
-        }
+                $state
+            ),
+            $state
+        );
+
+        return self::__construct(
+            $serializer,
+            $deserializer
+        );
     }
 
     /**
      * Anonymously serialize an eloquent model and its relations according to blueprint(s)
      *
      * @param Model $model
+     * @param array $customRules Custom model blueprints in the form of Array<FQCN, Blueprint array>
      * @return array
      */
-    public function serialize(Model $model)
+    public function serialize(Model $model, array $customRules = [])
     {
+        foreach ($customRules as $fqcn => $callback) {
+            $this->serializer->setCustomRule($fqcn, $callback);
+        }
+
         return $this->serializer->serialize($model);
     }
 
@@ -101,10 +100,15 @@ class Seriquent
      * Deserialize a anonymized serialization and its relations according to eloquent model blueprint(s)
      *
      * @param array|Closure $serialization Anonymized serialization in the form of an array or a generator
+     * @param array $customRules Custom model blueprints in the form of Array<FQCN, Blueprint array>
      * @return array An associative array of the type Array<Internal id, Database id>
      */
-    public function deserialize($serialization)
+    public function deserialize($serialization, array $customRules = [])
     {
+        foreach ($customRules as $fqcn => $callback) {
+            $this->deserializer->setCustomRule($fqcn, $callback);
+        }
+
         return $this->deserializer->deserialize($serialization);
     }
 }

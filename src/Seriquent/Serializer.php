@@ -10,12 +10,13 @@ use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Prewk\Seriquent;
+use Prewk\Seriquent\Contracts\SeriquentIOInterface;
 use Prewk\Seriquent\Serialization\BookKeeper;
 
 /**
  * Creates an anonymized array serialization of a hierarchy of eloquent models
  */
-class Serializer
+class Serializer implements SeriquentIOInterface
 {
     /**
      * @var BookKeeper
@@ -32,6 +33,21 @@ class Serializer
      */
     private $customRules;
 
+    public function __construct(
+        BookKeeper $bookKeeper,
+        State $state
+    )
+    {
+        $this->bookKeeper = $bookKeeper;
+        $this->state = $state;
+        $this->customRules = [];
+    }
+
+    public function setCustomRule($fqcn, callable $rule)
+    {
+        $this->customRules[$fqcn] = $rule;
+    }
+
     /**
      * Constructor
      *
@@ -39,7 +55,7 @@ class Serializer
      * @param State $state Progress and debugging
      * @param array $customRules Custom model blueprints in the form of Array<FQCN, Blueprint array>
      */
-    public function __construct(
+    public function x__construct(
         BookKeeper $bookKeeper,
         State $state,
         array $customRules = []
@@ -321,5 +337,15 @@ class Serializer
 
         // Return the serialization
         return $serialization;
+    }
+
+    /**
+     * Get the state object for debugging
+     *
+     * @return State
+     */
+    public function getState()
+    {
+        return $this->state;
     }
 }

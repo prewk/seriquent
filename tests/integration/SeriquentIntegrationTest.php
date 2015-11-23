@@ -142,7 +142,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 ],
             ],
         ];
-        $seriquent = new Seriquent(new Container());
+        $seriquent = Seriquent::make();
 
         // Act
         $books = $seriquent->deserialize($serialization);
@@ -233,7 +233,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 ],
             ],
         ];
-        $seriquent = new Seriquent(new Container());
+        $seriquent = Seriquent::make();
 
         // Act
         $books = $seriquent->deserialize($serialization);
@@ -343,7 +343,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 ],
             ],
         ];
-        $seriquent = new Seriquent(new Container());
+        $seriquent = Seriquent::make();
 
         // Act
         $books = $seriquent->deserialize($serialization);
@@ -410,7 +410,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $serialization["Prewk\\Seriquent\\Models\\Custom"][0]["id"] = $custom1->id;
         $serialization["Prewk\\Seriquent\\Models\\Custom"][1]["id"] = $custom2->id;
 
-        $seriquent = new Seriquent(new Container());
+        $seriquent = Seriquent::make();
 
         // Act
         $books = $seriquent->deserialize($serialization);
@@ -457,7 +457,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
             ],
         ];
 
-        $seriquent = new Seriquent(new Container(), [
+        $customRules = [
             "Prewk\\Seriquent\\Models\\Foo" => [
                 "root",
                 "test",
@@ -466,10 +466,12 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                     "custom" => ["related" => "Prewk\\Seriquent\\Models\\Custom"],
                 ]],
             ],
-        ]);
+        ];
+
+        $seriquent = Seriquent::make();
 
         // Act
-        $books = $seriquent->deserialize($serialization);
+        $books = $seriquent->deserialize($serialization, $customRules);
 
         // Assert
         $root = Root::findOrFail($books["@1"]);
@@ -508,7 +510,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $foo->data = ["custom_ids" => [$custom1->id, $custom2->id]];
         $foo->save();
 
-        $seriquent = new Seriquent(new Container());
+        $seriquent = Seriquent::make();
 
         // Act
         $serialization = $seriquent->serialize($root);
@@ -527,12 +529,12 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $root->test = "Null me";
         $root->save();
 
-        $seriquent = new Seriquent(new Container(), [
-            "Prewk\\Seriquent\\Models\\Root" => [],
-        ]);
+        $seriquent = Seriquent::make();
 
         // Act
-        $serialization = $seriquent->serialize($root);
+        $serialization = $seriquent->serialize($root, [
+            "Prewk\\Seriquent\\Models\\Root" => [],
+        ]);
 
         // Assert
         $this->assertArrayNotHasKey("test", $serialization["Prewk\\Seriquent\\Models\\Root"][0]);
@@ -556,16 +558,18 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
 
         $called = false;
 
-        $seriquent = new Seriquent(new Container(), [
+        $customRules = [
             "Prewk\\Seriquent\\Models\\Root" => function() use (&$called) {
                 $called = true;
 
                 return [];
             },
-        ]);
+        ];
+
+        $seriquent = Seriquent::make();
 
         // Act
-        $serialization = $seriquent->serialize($root);
+        $serialization = $seriquent->serialize($root, $customRules);
 
         // Assert
         $this->assertTrue($called);
@@ -574,7 +578,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $called = false;
 
         // Act
-        $seriquent->deserialize($serialization);
+        $seriquent->deserialize($serialization, $customRules);
 
         // Assert
         $this->assertTrue($called);
@@ -617,7 +621,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
             $exported[] = $something;
         };
 
-        $seriquent = new Seriquent(new Container(), [
+        $customRules = [
             "Prewk\\Seriquent\\Models\\Custom" => function($op, $model, $bookKeeper, $serializedEntity) use($importer, $exporter) {
                 switch ($op) {
                     case Seriquent::DESERIALIZING:
@@ -641,12 +645,14 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                         ];
                 }
             },
-        ]);
+        ];
 
-        $serialization = $seriquent->serialize($root);
+        $seriquent = Seriquent::make();
+
+        $serialization = $seriquent->serialize($root, $customRules);
         $this->assertEquals([$custom1->id, $custom2->id], $exported);
 
-        $books = $seriquent->deserialize($serialization);
+        $books = $seriquent->deserialize($serialization, $customRules);
         $this->assertEquals([$custom1->id, $custom2->id], $imported);
 
         $custom1 = Custom::findOrFail($books["@3"]);
@@ -722,7 +728,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 ],
             ],
         ];
-        $seriquent = new Seriquent(new Container());
+        $seriquent = Seriquent::make();
 
         // Act
         $books = $seriquent->deserialize(function() use ($serializationParts) {
@@ -824,7 +830,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                 ],
             ],
         ];
-        $seriquent = new Seriquent(new Container(), [
+        $customRules = [
             "Prewk\\Seriquent\\Models\\Foo" => [
                 "root",
                 "test",
@@ -835,10 +841,12 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                     ],
                 ]],
             ],
-        ]);
+        ];
+
+        $seriquent = Seriquent::make();
 
         // Act
-        $books = $seriquent->deserialize($serialization);
+        $books = $seriquent->deserialize($serialization, $customRules);
         $root = Root::findOrFail($books["@1"]);
 
         // Assert
@@ -847,7 +855,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertEquals("<a href=\"#/links/2\">linked-1</a>\n<p>Lorem ipsum</p></p><a href=\"#/links/3\">linked-2</a><a href=\"#/links/4\">linked-3</a>", $foo->data["content"]);
 
         // Re-serialize deserialization
-        $serialization = $seriquent->serialize($root);
+        $serialization = $seriquent->serialize($root, $customRules);
 
         // Assert
         $content = $serialization['Prewk\Seriquent\Models\Foo'][0]["data"]["content"];

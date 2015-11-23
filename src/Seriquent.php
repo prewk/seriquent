@@ -56,9 +56,12 @@ class Seriquent
      *
      * @return Seriquent
      */
-    public function make()
+    public static function make()
     {
         $app = function_exists("app") ? app() : new Container;
+        if (is_null($app)) {
+            $app = new Container;
+        }
         $state = new State;
         $serializer = new Serializer(
             new SerializeBookKeeper($state),
@@ -74,7 +77,7 @@ class Seriquent
             $state
         );
 
-        return self::__construct(
+        return new static(
             $serializer,
             $deserializer
         );

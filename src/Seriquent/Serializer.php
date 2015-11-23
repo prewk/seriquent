@@ -10,7 +10,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Prewk\Seriquent;
-use Prewk\Seriquent\Contracts\SeriquentIOInterface;
 use Prewk\Seriquent\Serialization\BookKeeper;
 
 /**
@@ -33,6 +32,12 @@ class Serializer implements SeriquentIOInterface
      */
     private $customRules;
 
+    /**
+     * Constructor
+     *
+     * @param BookKeeper $bookKeeper Serialization book keeper
+     * @param State $state State object for debugging and progress
+     */
     public function __construct(
         BookKeeper $bookKeeper,
         State $state
@@ -43,27 +48,15 @@ class Serializer implements SeriquentIOInterface
         $this->customRules = [];
     }
 
-    public function setCustomRule($fqcn, callable $rule)
+    /**
+     * Set a custom rule for a model
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param mixed $rule Blueprint
+     */
+    public function setCustomRule($fqcn, array $rule)
     {
         $this->customRules[$fqcn] = $rule;
-    }
-
-    /**
-     * Constructor
-     *
-     * @param BookKeeper $bookKeeper Keeps track of the ids
-     * @param State $state Progress and debugging
-     * @param array $customRules Custom model blueprints in the form of Array<FQCN, Blueprint array>
-     */
-    public function x__construct(
-        BookKeeper $bookKeeper,
-        State $state,
-        array $customRules = []
-    )
-    {
-        $this->bookKeeper = $bookKeeper;
-        $this->state = $state;
-        $this->customRules = $customRules;
     }
 
     /**

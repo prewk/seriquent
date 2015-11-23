@@ -28,7 +28,9 @@ class BookKeeper
     private $state;
 
     /**
-     * @param State $state
+     * Constructor
+     *
+     * @param State $state State object for debugging and progress
      */
     public function __construct(State $state)
     {

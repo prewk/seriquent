@@ -11,7 +11,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Container\Container;
 use Prewk\Seriquent;
-use Prewk\Seriquent\Contracts\SeriquentIOInterface;
 use Prewk\Seriquent\Deserialization\BookKeeper;
 
 /**
@@ -39,6 +38,13 @@ class Deserializer implements SeriquentIOInterface
      */
     private $customRules;
 
+    /**
+     * Constructor
+     *
+     * @param Container $app IoC container
+     * @param BookKeeper $bookKeeper Deserialization book keeper
+     * @param State $state State object for debugging and progress
+     */
     public function __construct(
         Container $app,
         BookKeeper $bookKeeper,
@@ -51,7 +57,13 @@ class Deserializer implements SeriquentIOInterface
         $this->customRules = [];
     }
 
-    public function setCustomRule($fqcn, callable $rule)
+    /**
+     * Set a custom rule for a model
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param mixed $rule Blueprint
+     */
+    public function setCustomRule($fqcn, array $rule)
     {
         $this->customRules[$fqcn] = $rule;
     }

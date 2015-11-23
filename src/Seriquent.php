@@ -58,16 +58,19 @@ class Seriquent
      */
     public static function make()
     {
+        // Assume we're in a Laravel framework environment but fallback to self-created IoC container
         $app = function_exists("app") ? app() : new Container;
         if (is_null($app)) {
             $app = new Container;
         }
+        // Construct a state object for debugging purposes
         $state = new State;
+        // Construct a serializer
         $serializer = new Serializer(
             new SerializeBookKeeper($state),
             $state
         );
-
+        // Construct a deserializer
         $deserializer = new Deserializer(
             $app,
             new DeserializeBookKeeper(
@@ -77,6 +80,7 @@ class Seriquent
             $state
         );
 
+        // Return a constructed Seriquent
         return new static(
             $serializer,
             $deserializer

@@ -529,18 +529,20 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $root->test = "Null me";
         $root->save();
 
+        $customRules = [
+            "Prewk\\Seriquent\\Models\\Root" => [],
+        ];
+
         $seriquent = Seriquent::make();
 
         // Act
-        $serialization = $seriquent->serialize($root, [
-            "Prewk\\Seriquent\\Models\\Root" => [],
-        ]);
+        $serialization = $seriquent->serialize($root, $customRules);
 
         // Assert
         $this->assertArrayNotHasKey("test", $serialization["Prewk\\Seriquent\\Models\\Root"][0]);
 
         // Act
-        $books = $seriquent->deserialize($serialization);
+        $books = $seriquent->deserialize($serialization, $customRules);
 
         // Assert
         $rootId = reset($books);

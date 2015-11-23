@@ -118,4 +118,85 @@ class Seriquent
 
         return $this->deserializer->deserialize($serialization);
     }
+
+    /**
+     * Subscribe to an event triggered just before a resolve for the given FQCN
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param int $action BookKeeper::DEFERRED_(UPDATE|ASSOCIATE|ATTACH|MORPH|SEARCH)
+     * @param callable $callback Called when the specified model is resolved, with the following signature:
+     *                           function(Model $model, array $data, string|null $resolvedDbId) -> Boolean { ... }
+     *                           $model is the Eloquent model
+     *                           $data contains info about the action that's going to be performed, with different
+     *                           array structures depending on action:
+     *                               DEFERRED_UPDATE: [
+     *                                   "dotPath" => Target dot path to update,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_ASSOCIATE: [
+     *                                   "field" => Target model field to associate with,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_ATTACH: [
+     *                                   "field" => Target model field to attach to,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_MORPH: [
+     *                                   "field" => Target model field describing the morph,
+     *                                   "morphableType" => Morphable type,
+     *                                   "morphableId" => Morphable internal id
+     *                               ]
+     *                               DEFERRED_SEARCH: [
+     *                                   "dotField" => Target dot path for finding the string to search and replace on,
+     *                                   "search" => String to search for containing the internal id,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                           $resolvedDbId contains the relevant resolved database id for the current deferred
+     *                           action if one could be found, if this is `null` an exception will be thrown shortly
+     *                           after the callback finishes _unless_ the callback returns `false` in which case the
+     *                           internal id resolved will be jumped over completely
+     */
+    public function onBeforeResolve($fqcn, $action, callable $callback)
+    {
+        $this->deserializer->getBookKeeper()->onBeforeResolve($fqcn, $action, $callback);
+    }
+
+    /**
+     * Subscribe to an event triggered just after a resolve for the given FQCN
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param int $action BookKeeper::DEFERRED_(UPDATE|ASSOCIATE|ATTACH|MORPH|SEARCH)
+     * @param callable $callback Called when the specified model is resolved, with the following signature:
+     *                           function(Model $model, array $data, string $resolvedDbId) -> bool { ... }
+     *                           $model is the updated Eloquent model (Note: Depending on actions, it might not be saved yet)
+     *                           $data contains info about the action that was performed, with different
+     *                           array structures depending on action:
+     *                               DEFERRED_UPDATE: [
+     *                                   "dotPath" => Target dot path that updated,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_ASSOCIATE: [
+     *                                   "field" => Target model field that was associated,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_ATTACH: [
+     *                                   "field" => Target model field that was attached,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_MORPH: [
+     *                                   "field" => Target model field describing the morph,
+     *                                   "morphableType" => Morphable type,
+     *                                   "morphableId" => Morphable internal id
+     *                               ]
+     *                               DEFERRED_SEARCH: [
+     *                                   "dotField" => Target dot path for finding the string to search and replace on,
+     *                                   "search" => String to search for containing the internal id,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                           $resolvedDbId contains the relevant resolved database id for the current deferred action
+     */
+    public function onAfterResolve($fqcn, $action, callable $callback)
+    {
+        $this->deserializer->getBookKeeper()->onAfterResolve($fqcn, $action, $callback);
+    }
 }

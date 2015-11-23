@@ -69,6 +69,16 @@ class Deserializer
     }
 
     /**
+     * Get the book keeper
+     *
+     * @return BookKeeper
+     */
+    public function getBookKeeper()
+    {
+        return $this->bookKeeper;
+    }
+
+    /**
      * Go through an array field and deal with internal id references
      *
      * @param Model $model The eloquent model

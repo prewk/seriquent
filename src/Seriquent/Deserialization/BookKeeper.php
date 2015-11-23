@@ -17,6 +17,22 @@ use Prewk\Seriquent\State;
  */
 class BookKeeper
 {
+    const DEFERRED_UPDATE = 1;
+    const DEFERRED_ASSOCIATE = 2;
+    const DEFERRED_ATTACH = 4;
+    const DEFERRED_MORPH = 8;
+    const DEFERRED_SEARCH = 9;
+
+    /**
+     * @var array Subscribers to onBeforeResolve
+     */
+    private $onBeforeResolves = [];
+
+    /**
+     * @var array Subscribers to onAfterResolve
+     */
+    private $onAfterResolves = [];
+
     /**
      * @var array Key = Internal anonymized id, Value = Newly created database id
      */
@@ -131,7 +147,31 @@ class BookKeeper
     public function associate(Model $model, $field, $receivingId, $referredId)
     {
         if (isset($this->books[$referredId])) {
+            // Trigger onBefore events
+            $fqcn = get_class($model);
+            if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_ASSOCIATE])) {
+                if (!$this->publish(
+                    $this->onBeforeResolves[$fqcn][self::DEFERRED_ASSOCIATE],
+                    $model,
+                    ["field" => $field, "referredId" => $referredId],
+                    $this->books[$referredId]
+                )) {
+                    return true;
+                }
+            }
+
             $model->$field()->associate($this->books[$referredId]);
+
+            // Trigger onAfter events
+            if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_ASSOCIATE])) {
+                $this->publish(
+                    $this->onAfterResolves[$fqcn][self::DEFERRED_ASSOCIATE],
+                    $model,
+                    ["field" => $field, "referredId" => $referredId],
+                    $this->books[$referredId]
+                );
+            }
+
             return true;
         } else {
             $this->deferredAssociate(get_class($model), $receivingId, $field, $referredId);
@@ -151,7 +191,32 @@ class BookKeeper
     public function attach(Model $model, $field, $receivingId, $referredId)
     {
         if (isset($this->books[$referredId])) {
+            $fqcn = get_class($model);
+
+            // Trigger onBefore events
+            if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_ATTACH])) {
+                if (!$this->publish(
+                    $this->onBeforeResolves[$fqcn][self::DEFERRED_ATTACH],
+                    $model,
+                    ["field" => $field, "referredId" => $referredId],
+                    $this->books[$referredId]
+                )) {
+                    return true;
+                }
+            }
+
             $model->$field()->attach($this->books[$referredId]);
+
+            // Trigger onAfter events
+            if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_ATTACH])) {
+                $this->publish(
+                    $this->onAfterResolves[$fqcn][self::DEFERRED_ATTACH],
+                    $model,
+                    ["field" => $field, "referredId" => $referredId],
+                    $this->books[$referredId]
+                );
+            }
+
             return true;
         } else {
             $this->deferredAttach(get_class($model), $receivingId, $field, $referredId);
@@ -172,7 +237,32 @@ class BookKeeper
     public function update(Model $model, $dotField, $receivingId, $referredId)
     {
         if (isset($this->books[$referredId])) {
+            $fqcn = get_class($model);
+
+            // Trigger onBefore events
+            if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_UPDATE])) {
+                if (!$this->publish(
+                    $this->onBeforeResolves[$fqcn][self::DEFERRED_UPDATE],
+                    $model,
+                    ["dotField" => $dotField, "referredId" => $referredId],
+                    $this->books[$referredId]
+                )) {
+                    return true;
+                }
+            }
+
             $this->mergeFieldData($model, $dotField, $this->books[$referredId]);
+
+            // Trigger onAfter events
+            if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_UPDATE])) {
+                $this->publish(
+                    $this->onAfterResolves[$fqcn][self::DEFERRED_UPDATE],
+                    $model,
+                    ["dotField" => $dotField, "referredId" => $referredId],
+                    $this->books[$referredId]
+                );
+            }
+
             return true;
         } else {
             $this->deferredUpdate(get_class($model), $receivingId, $dotField, $referredId);
@@ -194,7 +284,32 @@ class BookKeeper
     public function searchAndReplace(Model $model, $dotField, $receivingId, $search, $referredId)
     {
         if (isset($this->books[$referredId])) {
+            $fqcn = get_class($model);
+
+            // Trigger onBefore events
+            if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_SEARCH])) {
+                if (!$this->publish(
+                    $this->onBeforeResolves[$fqcn][self::DEFERRED_SEARCH],
+                    $model,
+                    ["dotField" => $dotField, "search" => $search, "referredId" => $referredId],
+                    $this->books[$referredId]
+                )) {
+                    return true;
+                }
+            }
+
             $this->searchAndReplaceFieldData($model, $dotField, $referredId, $search, $this->books[$referredId]);
+
+            // Trigger onAfter events
+            if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_SEARCH])) {
+                $this->publish(
+                    $this->onAfterResolves[$fqcn][self::DEFERRED_SEARCH],
+                    $model,
+                    ["dotField" => $dotField, "search" => $search, "referredId" => $referredId],
+                    $this->books[$referredId]
+                );
+            }
+
             return true;
         } else {
             $this->deferredSearchAndReplace(get_class($model), $receivingId, $dotField, $search, $referredId, $referredId);
@@ -215,14 +330,42 @@ class BookKeeper
     {
         list($morphableFqcn, $referredId) = $morph;
         if (isset($this->books[$referredId])) {
+            $fqcn = get_class($model);
+
+            // Trigger onBefore events
+            if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_MORPH])) {
+                if (!$this->publish(
+                    $this->onBeforeResolves[$fqcn][self::DEFERRED_MORPH],
+                    $model,
+                    ["field" => $field, "morphableType" => $morphableFqcn, "morphableId" => $referredId],
+                    $this->books[$referredId]
+                )) {
+                    return true;
+                }
+            }
+
             // Set the morphable fields
             $model->{$model->$field()->getForeignKey()} = $this->books[$referredId];
             $model->{$model->$field()->getMorphType()} = $morphableFqcn;
+
+            // Trigger onAfter events
+            if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_MORPH])) {
+                $this->publish(
+                    $this->onAfterResolves[$fqcn][self::DEFERRED_MORPH],
+                    $model,
+                    ["field" => $field, "morphableType" => $morphableFqcn, "morphableId" => $referredId],
+                    $this->books[$referredId]
+                );
+            }
+
+            return true;
         } else {
             // Set the morphable fields with a placeholder id to circumvent NOT NULL problems
             $model->{$model->$field()->getForeignKey()} = 0;
             $model->{$model->$field()->getMorphType()} = $morphableFqcn;
             $this->deferredMorph(get_class($model), $receivingId, $field, $morph);
+
+            return false;
         }
     }
 
@@ -332,6 +475,149 @@ class BookKeeper
     }
 
     /**
+     * Validate an action
+     *
+     * @param int $action Action
+     * @return bool Returns whether it validates
+     */
+    protected function validateAction($action)
+    {
+        return in_array($action, [
+            self::DEFERRED_UPDATE,
+            self::DEFERRED_ASSOCIATE,
+            self::DEFERRED_ATTACH,
+            self::DEFERRED_MORPH,
+            self::DEFERRED_SEARCH
+        ]);
+    }
+
+    /**
+     * Subscribe to an event triggered just before a resolve for the given FQCN
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param int $action BookKeeper::DEFERRED_(UPDATE|ASSOCIATE|ATTACH|MORPH|SEARCH)
+     * @param callable $callback Called when the specified model is resolved, with the following signature:
+     *                           function(Model $model, array $data, string|null $resolvedDbId) -> Boolean { ... }
+     *                           $model is the Eloquent model
+     *                           $data contains info about the action that's going to be performed, with different
+     *                           array structures depending on action:
+     *                               DEFERRED_UPDATE: [
+     *                                   "dotPath" => Target dot path to update,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_ASSOCIATE: [
+     *                                   "field" => Target model field to associate with,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_ATTACH: [
+     *                                   "field" => Target model field to attach to,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_MORPH: [
+     *                                   "field" => Target model field describing the morph,
+     *                                   "morphableType" => Morphable type,
+     *                                   "morphableId" => Morphable internal id
+     *                               ]
+     *                               DEFERRED_SEARCH: [
+     *                                   "dotField" => Target dot path for finding the string to search and replace on,
+     *                                   "search" => String to search for containing the internal id,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                           $resolvedDbId contains the relevant resolved database id for the current deferred
+     *                           action if one could be found, if this is `null` an exception will be thrown shortly
+     *                           after the callback finishes _unless_ the callback returns `false` in which case the
+     *                           internal id resolved will be jumped over completely
+     * @throws Exception if an invalid action is specified
+     */
+    public function onBeforeResolve($fqcn, $action, callable $callback)
+    {
+        if (!$this->validateAction($action)) {
+            throw new Exception("Invalid action specified");
+        }
+        if (!isset($this->onBeforeResolves[$fqcn])) {
+            $this->onBeforeResolves[$fqcn] = [];
+        }
+        if (!isset($this->onBeforeResolves[$fqcn][$action])) {
+            $this->onBeforeResolves[$fqcn][$action] = [];
+        }
+
+        $this->onBeforeResolves[$fqcn][$action][] = $callback;
+    }
+
+    /**
+     * Subscribe to an event triggered just after a resolve for the given FQCN
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param int $action BookKeeper::DEFERRED_(UPDATE|ASSOCIATE|ATTACH|MORPH|SEARCH)
+     * @param callable $callback Called when the specified model is resolved, with the following signature:
+     *                           function(Model $model, array $data, string $resolvedDbId) -> bool { ... }
+     *                           $model is the updated Eloquent model (Note: Depending on actions, it might not be saved yet)
+     *                           $data contains info about the action that was performed, with different
+     *                           array structures depending on action:
+     *                               DEFERRED_UPDATE: [
+     *                                   "dotPath" => Target dot path that updated,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_ASSOCIATE: [
+     *                                   "field" => Target model field that was associated,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_ATTACH: [
+     *                                   "field" => Target model field that was attached,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                               DEFERRED_MORPH: [
+     *                                   "field" => Target model field describing the morph,
+     *                                   "morphableType" => Morphable type,
+     *                                   "morphableId" => Morphable internal id
+     *                               ]
+     *                               DEFERRED_SEARCH: [
+     *                                   "dotField" => Target dot path for finding the string to search and replace on,
+     *                                   "search" => String to search for containing the internal id,
+     *                                   "referredId" => Internal id
+     *                               ]
+     *                           $resolvedDbId contains the relevant resolved database id for the current deferred action
+     * @throws Exception if an invalid action is specified
+     */
+    public function onAfterResolve($fqcn, $action, callable $callback)
+    {
+        if (!$this->validateAction($action)) {
+            throw new Exception("Invalid action specified");
+        }
+        if (isset($this->onAfterResolves[$fqcn])) {
+            $this->onAfterResolves[$fqcn] = [];
+        }
+        if (!isset($this->onAfterResolves[$fqcn][$action])) {
+            $this->onAfterResolves[$fqcn][$action] = [];
+        }
+
+        $this->onAfterResolves[$fqcn][$action][] = $callback;
+    }
+
+    /**
+     * Publish the given parameters to the given array of events
+     *
+     * @param array $events Array of subscribers
+     * @param Model $model Eloquent model
+     * @param array $data Deferred action data
+     * @param string|null $resolvedId Resolved database id
+     * @return bool Returns false if any of the subscribers return false, otherwise true
+     */
+    protected function publish(array $events, Model $model, array $data, $resolvedId)
+    {
+        $returnee = true;
+
+        // Publish to everyone listening
+        foreach ($events as $subscriber) {
+            if ($subscriber($model, $data, $resolvedId) === false) {
+                $returnee = false;
+            }
+        }
+
+        return $returnee;
+    }
+
+    /**
      * Run all deferred actions
      *
      * @return array The full, resolved, [Internal id => Db id] array
@@ -357,29 +643,88 @@ class BookKeeper
                 foreach ($deferee["associates"] as $associatee) {
                     list($field, $referredId) = $associatee;
 
+                    // Trigger onBefore events
+                    if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_ASSOCIATE])) {
+                        if (!$this->publish(
+                            $this->onBeforeResolves[$fqcn][self::DEFERRED_ASSOCIATE],
+                            $model,
+                            ["field" => $field, "referredId" => $referredId],
+                            isset($this->books[$referredId]) ? $this->books[$referredId] : null
+                        )) {
+                            continue;
+                        }
+                    }
+
                     if (!isset($this->books[$referredId])) {
                         throw new Exception("Expected referred id $referredId to have a db id when associating '$field' to a $fqcn model with db id $dbId and internal id $id");
                     }
                     $referredDbId = $this->books[$referredId];
 
+                    // Associate
                     $model->$field()->associate($referredDbId);
+
+                    // Trigger onAfter events
+                    if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_ASSOCIATE])) {
+                        $this->publish(
+                            $this->onAfterResolves[$fqcn][self::DEFERRED_ASSOCIATE],
+                            $model,
+                            ["field" => $field, "referredId" => $referredId],
+                            $referredDbId
+                        );
+                    }
                 }
 
                 // Attaches
                 foreach ($deferee["attaches"] as $attachee) {
                     list($field, $referredId) = $attachee;
 
+                    // Trigger onBefore events
+                    if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_ATTACH])) {
+                        if (!$this->publish(
+                            $this->onBeforeResolves[$fqcn][self::DEFERRED_ATTACH],
+                            $model,
+                            ["field" => $field, "referredId" => $referredId],
+                            isset($this->books[$referredId]) ? $this->books[$referredId] : null
+                        )) {
+                            continue;
+                        }
+                    }
+
                     if (!isset($this->books[$referredId])) {
                         throw new Exception("Expected referred id $referredId to have a db id when attaching '$field' to a $fqcn model with db id $dbId and internal id $id");
                     }
                     $referredDbId = $this->books[$referredId];
 
+                    // Attach
                     $model->$field()->attach($referredDbId);
+
+                    // Trigger onAfter events
+                    if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_ATTACH])) {
+                        $this->publish(
+                            $this->onAfterResolves[$fqcn][self::DEFERRED_ATTACH],
+                            $model,
+                            ["field" => $field, "referredId" => $referredId],
+                            $referredDbId
+                        );
+                    }
                 }
 
                 // Updates
                 foreach ($deferee["updates"] as $updatee) {
                     list($dotField, $referredId) = $updatee;
+
+                    // Trigger onBefore events
+                    if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_UPDATE])) {
+                        if (!$this->publish(
+                            $this->onBeforeResolves[$fqcn][self::DEFERRED_UPDATE],
+                            $model,
+                            ["dotField" => $dotField, "referredId" => $referredId],
+                            isset($this->books[$referredId]) ? $this->books[$referredId] : null
+                        )) {
+                            continue;
+                        }
+                    }
+
                     if (!isset($this->books[$referredId])) {
                         throw new Exception("Expected referred id $referredId to have a db id when updating '$dotField' to a $fqcn model with db id $dbId and internal id $id");
                     }
@@ -387,11 +732,34 @@ class BookKeeper
 
                     // Overwrite/Merge
                     $this->mergeFieldData($model, $dotField, $referredDbId);
+
+                    // Trigger onAfter events
+                    if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_UPDATE])) {
+                        $this->publish(
+                            $this->onAfterResolves[$fqcn][self::DEFERRED_UPDATE],
+                            $model,
+                            ["dotField" => $dotField, "referredId" => $referredId],
+                            $referredDbId
+                        );
+                    }
                 }
 
                 // Searches
                 foreach ($deferee["searches"] as $searchee) {
                     list($dotField, $search, $referredId) = $searchee;
+
+                    // Trigger onBefore events
+                    if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_SEARCH])) {
+                        if (!$this->publish(
+                            $this->onBeforeResolves[$fqcn][self::DEFERRED_SEARCH],
+                            $model,
+                            ["dotField" => $dotField, "search" => $search, "referredId" => $referredId],
+                            isset($this->books[$referredId]) ? $this->books[$referredId] : null
+                        )) {
+                            continue;
+                        }
+                    }
+
                     if (!isset($this->books[$referredId])) {
                         throw new Exception("Expected referred id $referredId to have a db id when updating '$dotField' to a $fqcn model with db id $dbId and internal id $id");
                     }
@@ -399,6 +767,16 @@ class BookKeeper
 
                     // Search and replace
                     $this->searchAndReplaceFieldData($model, $dotField, $referredId, $search, $referredDbId);
+
+                    // Trigger onAfter events
+                    if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_SEARCH])) {
+                        $this->publish(
+                            $this->onAfterResolves[$fqcn][self::DEFERRED_SEARCH],
+                            $model,
+                            ["dotField" => $dotField, "search" => $search, "referredId" => $referredId],
+                            $referredDbId
+                        );
+                    }
                 }
 
                 // Morphs
@@ -406,12 +784,34 @@ class BookKeeper
                     list($field, $morph) = $morphee;
                     list($morphableType, $morphableId) = $morph;
 
+                    // Trigger onBefore events
+                    if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_MORPH])) {
+                        if (!$this->publish(
+                            $this->onBeforeResolves[$fqcn][self::DEFERRED_MORPH],
+                            $model,
+                            ["field" => $field, "morphableType" => $morphableType, "morphableId" => $morphableId],
+                            isset($this->books[$referredId]) ? $this->books[$referredId] : null
+                        )) {
+                            continue;
+                        }
+                    }
+
                     if (!isset($this->books[$morphableId])) {
                         throw new Exception("Expected referred morphable id $morphableId to have a db id when morphing '$field' ($morphableType) to a $fqcn model with db id $dbId and internal id $id");
                     }
                     $morphableDbId = $this->books[$morphableId];
                     $model->{$model->$field()->getForeignKey()} = $morphableDbId;
                     $model->{$model->$field()->getMorphType()} = $morphableType;
+
+                    // Trigger onAfter events
+                    if (isset($this->onAfterResolves[$fqcn], $this->onAfterResolves[$fqcn][self::DEFERRED_MORPH])) {
+                        $this->publish(
+                            $this->onAfterResolves[$fqcn][self::DEFERRED_MORPH],
+                            $model,
+                            ["field" => $field, "morphableType" => $morphableType, "morphableId" => $morphableId],
+                            $referredDbId
+                        );
+                    }
                 }
                 $model->save();
             }
@@ -456,7 +856,7 @@ class BookKeeper
      * @param Model $model
      * @param string $dotField Field name with support for dot notation for array depth
      * @param mixed $referredId Referred internal id found in the $search string to replace with $referredDbId
-     * @param mixed $search String to search for containing the $referredDbId
+     * @param mixed $search String to search for containing the $referredId
      * @param mixed $referredDbId Referenced internal id to replace with
      */
     protected function searchAndReplaceFieldData(Model $model, $dotField, $referredId, $search, $referredDbId)

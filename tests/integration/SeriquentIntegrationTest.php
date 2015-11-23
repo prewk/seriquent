@@ -5,6 +5,7 @@ namespace Prewk;
 use Illuminate\Container\Container;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit_Framework_TestCase;
+use Prewk\Seriquent\Deserialization\BookKeeper;
 use Prewk\Seriquent\Models\Bar;
 use Prewk\Seriquent\Models\Custom;
 use Prewk\Seriquent\Models\Foo;
@@ -881,4 +882,84 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertEquals($compareAgainst["linked-2"], $matches[1][1]);
         $this->assertEquals($compareAgainst["linked-3"], $matches[1][2]);
     }
+
+
+    public function test_deserialize_events()
+    {
+        // Arrange
+        $serialization = [
+            "Prewk\\Seriquent\\Models\\Root" => [
+                [
+                    "@id" => "@1",
+                    "test" => "Lorem ipsum",
+                    "bar" => "@4",
+                    "special_bar" => "@4",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                [
+                    "@id" => "@2",
+                    "test" => "Foo bar",
+                    "data" => ["a" => 1, "b" => 2, "bar_id" => "@4"],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@3",
+                    "test" => "Baz qux",
+                    "data" => ["c" => 3, "d" => 4, "foo" => ["bar" => ["id" => "@1"]]],
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Bar" => [
+                [
+                    "@id" => "@4",
+                    "test" => "Test test",
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Poly" => [
+                [
+                    "@id" => "@5",
+                    "test" => "One",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@6",
+                    "test" => "Two",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@7",
+                    "test" => "Three",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@2"],
+                ],
+                [
+                    "@id" => "@8",
+                    "test" => "Four",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@3"],
+                ],
+            ],
+        ];
+        $seriquent = Seriquent::make();
+
+        $caughtEvents = [];
+
+        // Subscribe to some events
+        $seriquent->onAfterResolve("Prewk\\Seriquent\\Models\\Poly", BookKeeper::DEFERRED_MORPH, function($model, $data, $resolvedDbId) use (&$caughtEvents) {
+            $caughtEvents[$data["morphableType"] . "-" . $data["morphableId"]] = $resolvedDbId;
+        });
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+
+        // Assert
+        $root = Root::findOrFail($books["@1"]);
+        $this->assertEquals($root->id, $caughtEvents["Prewk\\Seriquent\\Models\\Root-@1"]);
+
+        $foo1 = Foo::findOrFail($books["@2"]);
+        $foo2 = Foo::findOrFail($books["@3"]);
+
+        $this->assertEquals($foo1->id, $caughtEvents["Prewk\\Seriquent\\Models\\Foo-@2"]);
+        $this->assertEquals($foo2->id, $caughtEvents["Prewk\\Seriquent\\Models\\Foo-@3"]);
+   }
 }

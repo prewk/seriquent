@@ -117,7 +117,7 @@ class BookKeeper
     public function bind($id, $dbId)
     {
         if (isset($this->books[$id])) {
-            throw new Exception("Bind collision: Internal id $id is already bound to database id " . $this->books[$id] . " and can't be re-bound to $dbId (in " . implode("->", $this->state->getPath()) . ")");
+            throw new Exception("Bind collision: Internal id $id is already bound to database id " . $this->books[$id] . " and can't be re-bound to $dbId");
         }
 
         $this->books[$id] = $dbId;
@@ -656,7 +656,7 @@ class BookKeeper
                     }
 
                     if (!isset($this->books[$referredId])) {
-                        throw new Exception("Expected referred id $referredId to have a db id when associating '$field' to a $fqcn model with db id $dbId and internal id $id (in " . implode("->", $this->state->getPath()) . ")");
+                        throw new Exception("Expected referred id $referredId to have a db id when associating '$field' to a $fqcn model with db id $dbId and internal id $id");
                     }
                     $referredDbId = $this->books[$referredId];
 
@@ -691,7 +691,7 @@ class BookKeeper
                     }
 
                     if (!isset($this->books[$referredId])) {
-                        throw new Exception("Expected referred id $referredId to have a db id when attaching '$field' to a $fqcn model with db id $dbId and internal id $id (in " . implode("->", $this->state->getPath()) . ")");
+                        throw new Exception("Expected referred id $referredId to have a db id when attaching '$field' to a $fqcn model with db id $dbId and internal id $id");
                     }
                     $referredDbId = $this->books[$referredId];
 
@@ -726,7 +726,7 @@ class BookKeeper
                     }
 
                     if (!isset($this->books[$referredId])) {
-                        throw new Exception("Expected referred id $referredId to have a db id when updating '$dotField' to a $fqcn model with db id $dbId and internal id $id (in " . implode("->", $this->state->getPath()) . ")");
+                        throw new Exception("Expected referred id $referredId to have a db id when updating '$dotField' to a $fqcn model with db id $dbId and internal id $id");
                     }
                     $referredDbId = $this->books[$referredId];
 
@@ -761,7 +761,7 @@ class BookKeeper
                     }
 
                     if (!isset($this->books[$referredId])) {
-                        throw new Exception("Expected referred id $referredId to have a db id when updating '$dotField' to a $fqcn model with db id $dbId and internal id $id (in " . implode("->", $this->state->getPath()) . ")");
+                        throw new Exception("Expected referred id $referredId to have a db id when updating '$dotField' to a $fqcn model with db id $dbId and internal id $id");
                     }
                     $referredDbId = $this->books[$referredId];
 
@@ -797,7 +797,7 @@ class BookKeeper
                     }
 
                     if (!isset($this->books[$morphableId])) {
-                        throw new Exception("Expected referred morphable id $morphableId to have a db id when morphing '$field' ($morphableType) to a $fqcn model with db id $dbId and internal id $id (in " . implode("->", $this->state->getPath()) . ")");
+                        throw new Exception("Expected referred morphable id $morphableId to have a db id when morphing '$field' ($morphableType) to a $fqcn model with db id $dbId and internal id $id");
                     }
                     $morphableDbId = $this->books[$morphableId];
                     $model->{$model->$field()->getForeignKey()} = $morphableDbId;

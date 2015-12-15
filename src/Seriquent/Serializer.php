@@ -33,6 +33,11 @@ class Serializer
     private $customRules;
 
     /**
+     * @var array
+     */
+    private $onBeforeAddToTree;
+
+    /**
      * Constructor
      *
      * @param BookKeeper $bookKeeper Serialization book keeper
@@ -46,6 +51,7 @@ class Serializer
         $this->bookKeeper = $bookKeeper;
         $this->state = $state;
         $this->customRules = [];
+        $this->onBeforeAddToTree = [];
     }
 
     /**
@@ -57,6 +63,19 @@ class Serializer
     public function setCustomRule($fqcn, $rule)
     {
         $this->customRules[$fqcn] = $rule;
+    }
+
+    /**
+     * Subscribe to an event triggered just before a serialized model gets added to the tree
+     * with an optional possibility to change the tree by returning a new array
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param callable $callback The event listener that will be called with $serializedEntity and can optionally
+     *                           return a new array
+     */
+    public function onBeforeAddToTree($fqcn, callable $callback)
+    {
+        $this->onBeforeAddToTree[$fqcn] = $callback;
     }
 
     /**
@@ -175,7 +194,8 @@ class Serializer
      * Perform a serialization
      *
      * @param Model $model Initially the top level model to which all of your other models are related
-     * @param array $serialization
+     * @param array $serialization Serialization tree being built
+     *
      * @return array
      * @throws Exception
      */
@@ -320,6 +340,17 @@ class Serializer
             if ($entity["@id"] === $serializedEntity["@id"]) {
                 $this->state->pop(); // Debug
                 return $serialization;
+            }
+        }
+
+        // Give the event listeners a chance to have a say
+        if (isset($this->onBeforeAddToTree[$fqcn])) {
+            // Run the callable
+            $mutatedTree = $this->onBeforeAddToTree[$fqcn]($serializedEntity);
+            // Did it return an array?
+            if (is_array($mutatedTree)) {
+                // Overwrite our original serialized entity data
+                $serializedEntity = $mutatedTree;
             }
         }
 

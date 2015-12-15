@@ -199,4 +199,17 @@ class Seriquent
     {
         $this->deserializer->getBookKeeper()->onAfterResolve($fqcn, $action, $callback);
     }
+
+    /**
+     * Subscribe to an event triggered just before a serialized model gets added to the tree
+     * with an optional possibility to change the tree by returning a new array
+     *
+     * @param string $fqcn Fully qualified class name
+     * @param callable $callback The event listener that will be called with $serializedEntity and can optionally
+     *                           return a new array
+     */
+    public function onBeforeAddToTree($fqcn, callable $callback)
+    {
+        $this->serializer->onBeforeAddToTree($fqcn, $callback);
+    }
 }

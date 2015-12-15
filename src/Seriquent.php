@@ -92,15 +92,49 @@ class Seriquent
      *
      * @param Model $model
      * @param array $customRules Custom model blueprints in the form of Array<FQCN, Blueprint array>
+     * @param array $trimUnreferenced Remove unreferenced entities from the serialization tree before returning it,
+     *                                by providing this parameter with an array of FQCNs
      * @return array
+     * @throws \Exception
      */
-    public function serialize(Model $model, array $customRules = [])
+    public function serialize(Model $model, array $customRules = [], array $trimUnreferenced = [])
     {
         foreach ($customRules as $fqcn => $callback) {
             $this->serializer->setCustomRule($fqcn, $callback);
         }
 
-        return $this->serializer->serialize($model);
+        $serialization = $this->serializer->serialize($model);
+
+        // Trim unreferenced entities?
+        if (count($trimUnreferenced) > 0) {
+            // Yep, get the ref count
+            $refCount = $this->serializer->getRefCount();
+            $trimmed = [];
+            // Iterate through all entity types
+            foreach ($serialization as $fqcn => $entities) {
+                // Look for possible trimming here?
+                if (in_array($fqcn, $trimUnreferenced)) {
+                    // Yes
+                    $trimmed[$fqcn] = [];
+                    // Iterate through all the entities of this FQCN
+                    foreach ($entities as $entity) {
+                        $id = $entity["@id"];
+                        // Any refs for this id?
+                        if (isset($refCount[$id])) {
+                            // Reference found - keep
+                            $trimmed[$fqcn][] = $entity;
+                        }
+                    }
+                } else {
+                    // No
+                    $trimmed[$fqcn] = $entities;
+                }
+            }
+            // Overwrite the old serialization with our new trimmed
+            $serialization = $trimmed;
+        }
+
+        return $serialization;
     }
 
     /**

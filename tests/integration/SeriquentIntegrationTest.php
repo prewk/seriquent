@@ -1119,4 +1119,78 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         }
     }
 
+    public function test_serialize_with_unreferenced_entity_trimming()
+    {
+        // Arrange
+        $serialization = [
+            "Prewk\\Seriquent\\Models\\Root" => [
+                [
+                    "@id" => "@1",
+                    "test" => "Lorem ipsum",
+                    "bar" => "@4",
+                    "special_bar" => "@4",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                [
+                    "@id" => "@2",
+                    "test" => "Foo bar",
+                    "data" => ["a" => 1, "b" => 2, "bar_id" => "@4"],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@3",
+                    "test" => "Baz qux",
+                    "data" => ["c" => 3, "d" => 4],
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Bar" => [
+                [
+                    "@id" => "@4",
+                    "test" => "Test test",
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Poly" => [
+                [
+                    "@id" => "@5",
+                    "test" => "One",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@6",
+                    "test" => "Two",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@7",
+                    "test" => "Three",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@2"],
+                ],
+                [
+                    "@id" => "@8",
+                    "test" => "Four",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@3"],
+                ],
+            ],
+        ];
+        $seriquent = Seriquent::make();
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+        $root = Root::findOrFail($books["@1"]);
+
+        // Re-serialize and trim away unreferenced Polys and Bars
+        $reserialization = $seriquent->serialize($root, [], ["Prewk\\Seriquent\\Models\\Poly", "Prewk\\Seriquent\\Models\\Bar"]);
+
+        // Assert
+        // There should be no Polys left in the serialization
+        $this->assertEquals(0, count($reserialization["Prewk\\Seriquent\\Models\\Poly"]));
+        // There should be a Bar left, because it was referenced
+        $this->assertTrue(isset($reserialization["Prewk\\Seriquent\\Models\\Bar"]));
+        $this->assertTrue(isset($reserialization["Prewk\\Seriquent\\Models\\Bar"][0]));
+        $this->assertEquals("Test test", $reserialization["Prewk\\Seriquent\\Models\\Bar"][0]["test"]);
+    }
+
 }

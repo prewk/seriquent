@@ -18,6 +18,11 @@ use Prewk\Seriquent\Serialization\BookKeeper;
 class Serializer
 {
     /**
+     * @var array
+     */
+    private $refCount;
+
+    /**
      * @var BookKeeper
      */
     private $bookKeeper;
@@ -52,6 +57,40 @@ class Serializer
         $this->state = $state;
         $this->customRules = [];
         $this->onBeforeAddToTree = [];
+        $this->refCount = [];
+    }
+
+    /**
+     * Get the reference count for referenced entities
+     *
+     * @return array Key = Internal id, value = Number of times it's been referenced somewhere,
+     *               excluding the time it was created
+     */
+    public function getRefCount()
+    {
+        return $this->refCount;
+    }
+
+    /**
+     * Wrapped BookKeeper->getId so that we can keep a reference count of referenced entities
+     *
+     * @param string $modelFqcn
+     * @param mixed $dbId
+     * @return mixed
+     */
+    protected function getIdRef($modelFqcn, $dbId)
+    {
+        // Do the actual getId
+        $internalId = $this->bookKeeper->getId($modelFqcn, $dbId);
+
+        if (!isset($this->refCount[$internalId])) {
+            $this->refCount[$internalId] = 0;
+        }
+
+        // Increment reference count for this model and database id
+        $this->refCount[$internalId]++;
+
+        return $internalId;
     }
 
     /**
@@ -108,7 +147,7 @@ class Serializer
                     // Match against exact dot pattern or regexp if it starts with a /
                     if ($path === $pattern || ($pattern[0] === "/" && preg_match($pattern, $path) === 1)) {
                         // Match - Replace with an internal id
-                        Arr::set($fieldData, $path, $this->bookKeeper->getId($mixed, $data));
+                        Arr::set($fieldData, $path, $this->getIdRef($mixed, $data));
                     }
                 }
             } elseif (is_string($data)) {
@@ -145,7 +184,7 @@ class Serializer
                             // Iterate through the search strings to replace the ids with internal references
                             foreach ($searchStrings as $index => $searchString) {
                                 // Create replacement string
-                                $replacement = str_replace($ids[$index], $this->bookKeeper->getId($fqcn, $ids[$index]), $searchString);
+                                $replacement = str_replace($ids[$index], $this->getIdRef($fqcn, $ids[$index]), $searchString);
                                 // Actually replace the matched id strings with internal ref'd strings
                                 $localFieldData = str_replace($searchString, $replacement, $localFieldData);
                             }
@@ -215,7 +254,7 @@ class Serializer
 
         $this->state->push("$fqcn-" . $model->getKey()); // Debug
 
-        // Set internal id
+        // Set internal id (Directly from book keeper, don't use getIdRef)
         $serializedEntity["@id"] = $this->bookKeeper->getId($fqcn, $model->getKey());
 
         // If blueprint is an associative array (as opposed to a normal array) we just want to merge with @id and continue
@@ -297,10 +336,10 @@ class Serializer
                         // Do we already have this belonging entity's internal id?
                         if ($this->bookKeeper->hasId($contentFqcn, $content->{$relation->getOtherKey()})) {
                             // Yep, use it and continue
-                            $serializedEntity[$field] = $this->bookKeeper->getId($contentFqcn, $content->{$relation->getOtherKey()});
+                            $serializedEntity[$field] = $this->getIdRef($contentFqcn, $content->{$relation->getOtherKey()});
                         } else {
                             // Nope, create it and recurse down the rabbit hole
-                            $serializedEntity[$field] = $this->bookKeeper->getId($contentFqcn, $content->{$relation->getOtherKey()});
+                            $serializedEntity[$field] = $this->getIdRef($contentFqcn, $content->{$relation->getOtherKey()});
                             $serialization = $this->serialize($content, $serialization);
                         }
                         break;
@@ -312,7 +351,7 @@ class Serializer
                         // Get morphable id and morphable type and save as a tuple [type, id]
                         $morphedId = $model->{$relation->getForeignKey()};
                         $morphedType = $model->{$relation->getMorphType()};
-                        $serializedEntity[$field] = [$morphedType, $this->bookKeeper->getId($morphedType, $morphedId)];
+                        $serializedEntity[$field] = [$morphedType, $this->getIdRef($morphedType, $morphedId)];
                         break;
                 }
             } elseif ($content instanceof Collection) {

@@ -963,7 +963,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertEquals($foo2->id, $caughtEvents["Prewk\\Seriquent\\Models\\Foo-@3"]);
     }
 
-    public function test_serialize_with_onBeforeAddTree_event_listener()
+    public function test_serialize_with_onBeforeAddTree_event_listener_returning_array()
     {
         // Arrange
         $serialization = [
@@ -1038,6 +1038,84 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         foreach ($reserialization["Prewk\\Seriquent\\Models\\Poly"] as $entity) {
             $this->assertArrayHasKey("an_extra_field", $entity);
             $this->assertEquals(123, $entity["an_extra_field"]);
+        }
+    }
+
+    public function test_serialize_with_onBeforeAddTree_event_listener_returning_false()
+    {
+        // Arrange
+        $serialization = [
+            "Prewk\\Seriquent\\Models\\Root" => [
+                [
+                    "@id" => "@1",
+                    "test" => "Lorem ipsum",
+                    "bar" => "@4",
+                    "special_bar" => "@4",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                [
+                    "@id" => "@2",
+                    "test" => "Foo bar",
+                    "data" => ["a" => 1, "b" => 2, "bar_id" => "@4"],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@3",
+                    "test" => "Baz qux",
+                    "data" => ["c" => 3, "d" => 4],
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Bar" => [
+                [
+                    "@id" => "@4",
+                    "test" => "Test test",
+                    "root" => "@1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Poly" => [
+                [
+                    "@id" => "@5",
+                    "test" => "One",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@6",
+                    "test" => "Two",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "@1"],
+                ],
+                [
+                    "@id" => "@7",
+                    "test" => "Three",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@2"],
+                ],
+                [
+                    "@id" => "@8",
+                    "test" => "Four",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@3"],
+                ],
+            ],
+        ];
+        $seriquent = Seriquent::make();
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+        $root = Root::findOrFail($books["@1"]);
+
+        // Re-serialize
+        $seriquent->onBeforeAddToTree("Prewk\\Seriquent\\Models\\Poly", function($serializedEntity) {
+            if ($serializedEntity["test"] === "Three") {
+                // Make the Poly with test=Three not be serialized
+                return false;
+            }
+        });
+        $reserialization = $seriquent->serialize($root);
+
+        // Assert
+        // Make sure the right Polys are in the reserialization
+        foreach ($reserialization["Prewk\\Seriquent\\Models\\Poly"] as $entity) {
+            $this->assertNotEquals("Three", $entity["test"]);
         }
     }
 

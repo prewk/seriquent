@@ -67,11 +67,12 @@ class Serializer
 
     /**
      * Subscribe to an event triggered just before a serialized model gets added to the tree
-     * with an optional possibility to change the tree by returning a new array
+     * with an optional possibility to change the tree by returning a new array or skipping the
+     * entity entirely by returning false
      *
      * @param string $fqcn Fully qualified class name
      * @param callable $callback The event listener that will be called with $serializedEntity and can optionally
-     *                           return a new array
+     *                           return a new array or false
      */
     public function onBeforeAddToTree($fqcn, callable $callback)
     {
@@ -351,6 +352,11 @@ class Serializer
             if (is_array($mutatedTree)) {
                 // Overwrite our original serialized entity data
                 $serializedEntity = $mutatedTree;
+            } else if ($mutatedTree === false) { // Did it return a false?
+                // Don't add the serialized entity at all - early return
+                $this->state->pop(); // Debug
+                // Return the serialization
+                return $serialization;
             }
         }
 
@@ -358,7 +364,6 @@ class Serializer
         $serialization[$fqcn][] = $serializedEntity;
 
         $this->state->pop(); // Debug
-
         // Return the serialization
         return $serialization;
     }

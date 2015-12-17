@@ -141,8 +141,8 @@ The strings are either a column name or a relation name. Primary key is automati
 <?php
 use Prewk\Seriquent;
 
-// The Laravel container app() is needed for model resolution
-$seriquent = new Seriquent(app());
+// The factory helper method
+$seriquent = Seriquent::make();
 
 // Deserialize from Foo with id 5
 $serialization = $seriquent->serialize(Foo::findOrFail(5));

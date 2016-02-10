@@ -348,6 +348,15 @@ class Serializer
                         $serialization = $this->serialize($content, $serialization);
                         break;
                     case "MorphTo":
+                        // Do we already have this morphed entity's internal id?
+                        if ($this->bookKeeper->hasId($contentFqcn, $content->{$relation->getOtherKey()})) {
+                            // Yep, use it and continue
+                            $serializedEntity[$field] = $this->getIdRef($contentFqcn, $content->{$relation->getOtherKey()});
+                        } else {
+                            // Nope, create it and recurse down the rabbit hole
+                            $serializedEntity[$field] = $this->getIdRef($contentFqcn, $content->{$relation->getOtherKey()});
+                            $serialization = $this->serialize($content, $serialization);
+                        }
                         // Get morphable id and morphable type and save as a tuple [type, id]
                         $morphedId = $model->{$relation->getForeignKey()};
                         $morphedType = $model->{$relation->getMorphType()};

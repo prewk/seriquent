@@ -256,6 +256,84 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         }
     }
 
+    public function test_serialize_with_custom_prefix()
+    {
+        // Arrange
+        $serialization = [
+            "Prewk\\Seriquent\\Models\\Root" => [
+                [
+                    "@id" => "_id_1",
+                    "test" => "Lorem ipsum",
+                    "bar" => "_id_4",
+                    "special_bar" => "_id_4",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Foo" => [
+                [
+                    "@id" => "_id_2",
+                    "test" => "Foo bar",
+                    "data" => ["a" => 1, "b" => 2, "bar_id" => "_id_4"],
+                    "root" => "_id_1",
+                ],
+                [
+                    "@id" => "_id_3",
+                    "test" => "Baz qux",
+                    "data" => ["c" => 3, "d" => 4],
+                    "root" => "_id_1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Bar" => [
+                [
+                    "@id" => "_id_4",
+                    "test" => "Test test",
+                    "root" => "_id_1",
+                ],
+            ],
+            "Prewk\\Seriquent\\Models\\Poly" => [
+                [
+                    "@id" => "_id_5",
+                    "test" => "One",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "_id_1"],
+                ],
+                [
+                    "@id" => "_id_6",
+                    "test" => "Two",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "_id_1"],
+                ],
+                [
+                    "@id" => "_id_7",
+                    "test" => "Three",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "_id_2"],
+                ],
+                [
+                    "@id" => "_id_8",
+                    "test" => "Four",
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "_id_3"],
+                ],
+            ],
+        ];
+        $seriquent = Seriquent::make();
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+        $root = Root::findOrFail($books["_id_1"]);
+
+        // Re-serialize
+        $reserialization = $seriquent->serialize($root);
+
+        // Assert
+        // Compare the serializations
+        // Assert same amount of fqcns
+        $this->assertEquals(count($serialization), count($reserialization));
+        // Iterate and compare
+        foreach ($reserialization as $fqcn => $entities) {
+            // Assert that the same fqcns exist on both arrays
+            $this->assertArrayHasKey($fqcn, $serialization);
+            // Assert that the same amount of entities exist on both arrays for this fqcn
+            $this->assertEquals(count($serialization[$fqcn]), count($entities));
+        }
+    }
+
     public function test_serialize_with_morph_to_many()
     {
         // Arrange

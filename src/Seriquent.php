@@ -56,7 +56,7 @@ class Seriquent
      *
      * @return Seriquent
      */
-    public static function make()
+    public static function make($prefix = "@")
     {
         // Assume we're in a Laravel framework environment but fallback to self-created IoC container
         $app = function_exists("app") ? app() : new Container;
@@ -67,8 +67,9 @@ class Seriquent
         $state = new State;
         // Construct a serializer
         $serializer = new Serializer(
-            new SerializeBookKeeper($state),
-            $state
+            new SerializeBookKeeper($state, $prefix),
+            $state,
+            $prefix
         );
         // Construct a deserializer
         $deserializer = new Deserializer(
@@ -77,7 +78,8 @@ class Seriquent
                 $app,
                 $state
             ),
-            $state
+            $state,
+            $prefix
         );
 
         // Return a constructed Seriquent

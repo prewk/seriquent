@@ -39,21 +39,29 @@ class Deserializer
     private $customRules;
 
     /**
+     * @var string
+     */
+    private $prefix;
+
+    /**
      * Constructor
      *
      * @param Container $app IoC container
      * @param BookKeeper $bookKeeper Deserialization book keeper
      * @param State $state State object for debugging and progress
+     * @param string $prefix
      */
     public function __construct(
         Container $app,
         BookKeeper $bookKeeper,
-        State $state
+        State $state,
+        $prefix = "@"
     )
     {
         $this->app = $app;
         $this->bookKeeper = $bookKeeper;
         $this->state = $state;
+        $this->prefix = $prefix;
         $this->customRules = [];
     }
 
@@ -97,7 +105,7 @@ class Deserializer
         foreach ($dotData as $path => $data) {
             $this->state->push($path); // Debug
             // Match only against data that starts with a @
-            if (is_string($data) && strlen($data) > 0 && $data[0] === "@") {
+            if (is_string($data) && strlen($data) > 0 && $data[0] === $this->prefix) {
                 // Iterate through the rules and see if any patterns match our data key
                 foreach ($rules as $pattern => $mixed) {
                     if (is_array($mixed)) {
@@ -153,7 +161,7 @@ class Deserializer
                             $uniqueRefs = [];
                             foreach ($refs as $index => $ref) {
                                 // Ref must not already be matched and must start with a @
-                                if (!isset($uniqueRefs[$ref]) && isset($ref[0]) && $ref[0] === "@") {
+                                if (!isset($uniqueRefs[$ref]) && isset($ref[0]) && $ref[0] === $this->prefix) {
                                     $uniqueRefs[$ref] = true;
                                 } else {
                                     // Clear from the matches

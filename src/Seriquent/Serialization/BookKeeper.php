@@ -28,13 +28,20 @@ class BookKeeper
     private $state;
 
     /**
+     * @var string
+     */
+    private $prefix;
+
+    /**
      * Constructor
      *
      * @param State $state State object for debugging and progress
+     * @param string $prefix Internal id prefix
      */
-    public function __construct(State $state)
+    public function __construct(State $state, $prefix = "@")
     {
         $this->state = $state;
+        $this->prefix = $prefix;
     }
 
     /**
@@ -57,7 +64,7 @@ class BookKeeper
      */
     protected function idGenerator()
     {
-        return "@" . ++$this->internalIdCounter;
+        return $this->prefix . ++$this->internalIdCounter;
     }
 
     /**

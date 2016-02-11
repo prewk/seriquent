@@ -226,7 +226,7 @@ class Serializer
             return $model::getBlueprint(Seriquent::SERIALIZING, $model, $this->bookKeeper, null);
         } else {
             // No model found
-            return [];
+            return Seriquent::NON_TRAVERSING_BLUEPRINT;
         }
     }
 

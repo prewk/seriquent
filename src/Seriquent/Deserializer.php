@@ -221,7 +221,7 @@ class Deserializer
             return $model::getBlueprint(Seriquent::DESERIALIZING, $model, $this->bookKeeper, $serializedEntity);
         } else {
             // No model found
-            return [];
+            return Seriquent::NON_TRAVERSING_BLUEPRINT;
         }
     }
 

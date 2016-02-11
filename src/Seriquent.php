@@ -21,6 +21,8 @@ class Seriquent
 {
     const SERIALIZING = 1;
     const DESERIALIZING = 2;
+    const WRITE_PROTECTED_BLUEPRINT = ["id"];
+    const NON_TRAVERSING_BLUEPRINT = [];
 
     /**
      * @var State

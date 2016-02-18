@@ -262,62 +262,62 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $serialization = [
             "Prewk\\Seriquent\\Models\\Root" => [
                 [
-                    "@id" => "_1",
+                    "@id" => "__id__1",
                     "test" => "Lorem ipsum",
-                    "bar" => "_4",
-                    "special_bar" => "_4",
+                    "bar" => "__id__4",
+                    "special_bar" => "__id__4",
                 ],
             ],
             "Prewk\\Seriquent\\Models\\Foo" => [
                 [
-                    "@id" => "_2",
+                    "@id" => "__id__2",
                     "test" => "Foo bar",
-                    "data" => ["a" => 1, "b" => 2, "bar_id" => "_4"],
-                    "root" => "_1",
+                    "data" => ["a" => 1, "b" => 2, "bar_id" => "__id__4"],
+                    "root" => "__id__1",
                 ],
                 [
-                    "@id" => "_3",
+                    "@id" => "__id__3",
                     "test" => "Baz qux",
                     "data" => ["c" => 3, "d" => 4],
-                    "root" => "_1",
+                    "root" => "__id__1",
                 ],
             ],
             "Prewk\\Seriquent\\Models\\Bar" => [
                 [
-                    "@id" => "_4",
+                    "@id" => "__id__4",
                     "test" => "Test test",
-                    "root" => "_1",
+                    "root" => "__id__1",
                 ],
             ],
             "Prewk\\Seriquent\\Models\\Poly" => [
                 [
-                    "@id" => "_5",
+                    "@id" => "__id__5",
                     "test" => "One",
-                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "_1"],
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "__id__1"],
                 ],
                 [
-                    "@id" => "_6",
+                    "@id" => "__id__6",
                     "test" => "Two",
-                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "_1"],
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Root", "__id__1"],
                 ],
                 [
-                    "@id" => "_7",
+                    "@id" => "__id__7",
                     "test" => "Three",
-                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "_2"],
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "__id__2"],
                 ],
                 [
-                    "@id" => "_8",
+                    "@id" => "__id__8",
                     "test" => "Four",
-                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "_3"],
+                    "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "__id__3"],
                 ],
             ],
         ];
-        $seriquent = Seriquent::make("_");
+        $seriquent = Seriquent::make("__id__");
 
         // Act
         $books = $seriquent->deserialize($serialization);
-        $root = Root::findOrFail($books["_1"]);
-        $foo = Foo::findOrfail($books["_2"]);
+        $root = Root::findOrFail($books["__id__1"]);
+        $foo = Foo::findOrfail($books["__id__2"]);
 
         // Re-serialize
         $reserialization = $seriquent->serialize($root);
@@ -325,7 +325,7 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         // Assert
 
         // Make sure the deep Foo ref points to the Bar
-        $this->assertEquals($books["_4"], $foo->data["bar_id"]);
+        $this->assertEquals($books["__id__4"], $foo->data["bar_id"]);
 
         // Compare the serializations
         // Assert same amount of fqcns

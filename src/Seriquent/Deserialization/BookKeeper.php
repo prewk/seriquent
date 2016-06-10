@@ -430,7 +430,7 @@ class BookKeeper
      * @param string $search
      * @param mixed $referredId Referred internal id
      */
-    protected function deferredSearchAndReplace($fqcn, $receivingId, $field, $search, $referredId, $referredId)
+    protected function deferredSearchAndReplace($fqcn, $receivingId, $field, $search, $referredId)
     {
         $this->addDeferredAction($fqcn, $receivingId, [$field, $search, $referredId], "searches");
     }

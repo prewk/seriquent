@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Container\Container;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Prewk\Seriquent;
 use Prewk\Seriquent\Deserialization\BookKeeper;
 
@@ -44,6 +45,16 @@ class Deserializer
     private $prefix;
 
     /**
+     * @var array
+     **/
+    private $morphMap;
+
+    /**
+     * @var array
+     **/
+    private $revMorphMap;
+
+    /**
      * Constructor
      *
      * @param Container $app IoC container
@@ -63,6 +74,8 @@ class Deserializer
         $this->state = $state;
         $this->prefix = $prefix;
         $this->customRules = [];
+        $this->morphMap = Relation::morphMap();
+        $this->revMorphMap = array_flip($this->morphMap);
     }
 
     /**
@@ -195,6 +208,34 @@ class Deserializer
     }
 
     /**
+     * Creates the class through the IoC container, taking eloquent morphMap into account
+     * 
+     * @param string $fqcn Eloquent model
+     * @return Model The IoC created model
+     */
+    protected function makeModel($fqcn)
+    {
+        return $this->app->make(
+            isset($this->morphMap[$fqcn])
+                ? $this->morphMap[$fqcn]
+                : $fqcn
+        );
+    }
+
+    /**
+     * Gets the class name, taking eloquent morphMap into account
+     * 
+     * @param Model $model Eloquent model
+     * @return array Tuple with morph map or class name as first entry and fqcn as second
+     */
+    protected function getClassName($model)
+    {
+        $fqcn = get_class($model);
+
+        return [isset($this->revMorphMap[$fqcn]) ? $this->revMorphMap[$fqcn] : $fqcn, $fqcn];
+    }
+
+    /**
      * Get blueprint for a model
      *
      * @param Model $model Eloquent model
@@ -203,18 +244,19 @@ class Deserializer
      */
     protected function getBlueprint(Model $model, array $serializedEntity)
     {
-        $fqcn = get_class($model);
+        list($alias, $fqcn) = $this->getClassName($model);
+
         // Overwriting blueprint?
-        if (isset($this->customRules[$fqcn])) {
-            if (is_callable($this->customRules[$fqcn])) {
+        if (isset($this->customRules[$alias])) {
+            if (is_callable($this->customRules[$alias])) {
                 // Callable blueprint
-                $callable = $this->customRules[$fqcn];
+                $callable = $this->customRules[$alias];
                 $rules = $callable(Seriquent::DESERIALIZING, $model, $this->bookKeeper, $serializedEntity);
                 // Returning an array of rules is optional
                 return isset($rules) ? $rules : [];
             } else {
                 // Array blueprint
-                return $this->customRules[$fqcn];
+                return $this->customRules[$alias];
             }
         } elseif (method_exists($fqcn, "getBlueprint")) {
             // Get blueprint from model
@@ -261,7 +303,7 @@ class Deserializer
 
                 // Iterate through the serialized entities
                 foreach ($serializedEntities as $serializedEntity) {
-                    $model = $this->app->make($fqcn);
+                    $model = $this->makeModel($fqcn);
 
                     // Get the internal id of this entity
                     $id = $serializedEntity["@id"];

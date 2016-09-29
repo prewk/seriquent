@@ -8,6 +8,7 @@ namespace Prewk\Seriquent\Deserialization;
 use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Container\Container;
 use Prewk\Seriquent\State;
 
@@ -86,6 +87,16 @@ class BookKeeper
     private $state;
 
     /**
+     * @var array
+     **/
+    private $morphMap;
+
+    /**
+     * @var array
+     **/
+    private $revMorphMap;
+
+    /**
      * Constructor
      *
      * @param Container $app Laravel container for resolving applications from the IoC
@@ -95,6 +106,36 @@ class BookKeeper
     {
         $this->app = $app;
         $this->state = $state;
+        $this->morphMap = Relation::morphMap();
+        $this->revMorphMap = array_flip($this->morphMap);
+    }
+
+    /**
+     * Gets the class name, taking eloquent morphMap into account
+     * 
+     * @param Model $model Eloquent model
+     * @return array Tuple with morph map or class name as first entry and fqcn as second
+     */
+    protected function getClassName($model)
+    {
+        $fqcn = get_class($model);
+
+        return [isset($this->revMorphMap[$fqcn]) ? $this->revMorphMap[$fqcn] : $fqcn, $fqcn];
+    }
+
+    /**
+     * Creates the class through the IoC container, taking eloquent morphMap into account
+     * 
+     * @param string $fqcn Eloquent model
+     * @return Model The IoC created model
+     */
+    protected function makeModel($fqcn)
+    {
+        return $this->app->make(
+            isset($this->morphMap[$fqcn])
+                ? $this->morphMap[$fqcn]
+                : $fqcn
+        );
     }
 
     /**
@@ -148,7 +189,7 @@ class BookKeeper
     {
         if (isset($this->books[$referredId])) {
             // Trigger onBefore events
-            $fqcn = get_class($model);
+            $fqcn = $this->getClassName($model)[0];
             if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_ASSOCIATE])) {
                 if (!$this->publish(
                     $this->onBeforeResolves[$fqcn][self::DEFERRED_ASSOCIATE],
@@ -174,7 +215,7 @@ class BookKeeper
 
             return true;
         } else {
-            $this->deferredAssociate(get_class($model), $receivingId, $field, $referredId);
+            $this->deferredAssociate($this->getClassName($model)[0], $receivingId, $field, $referredId);
             return false;
         }
     }
@@ -191,7 +232,7 @@ class BookKeeper
     public function attach(Model $model, $field, $receivingId, $referredId)
     {
         if (isset($this->books[$referredId])) {
-            $fqcn = get_class($model);
+            $fqcn = $this->getClassName($model)[0];
 
             // Trigger onBefore events
             if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_ATTACH])) {
@@ -219,7 +260,7 @@ class BookKeeper
 
             return true;
         } else {
-            $this->deferredAttach(get_class($model), $receivingId, $field, $referredId);
+            $this->deferredAttach($this->getClassName($model)[0], $receivingId, $field, $referredId);
             return false;
         }
     }
@@ -237,7 +278,7 @@ class BookKeeper
     public function update(Model $model, $dotField, $receivingId, $referredId)
     {
         if (isset($this->books[$referredId])) {
-            $fqcn = get_class($model);
+            $fqcn = $this->getClassName($model)[0];
 
             // Trigger onBefore events
             if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_UPDATE])) {
@@ -265,7 +306,7 @@ class BookKeeper
 
             return true;
         } else {
-            $this->deferredUpdate(get_class($model), $receivingId, $dotField, $referredId);
+            $this->deferredUpdate($this->getClassName($model)[0], $receivingId, $dotField, $referredId);
             return false;
         }
     }
@@ -284,7 +325,7 @@ class BookKeeper
     public function searchAndReplace(Model $model, $dotField, $receivingId, $search, $referredId)
     {
         if (isset($this->books[$referredId])) {
-            $fqcn = get_class($model);
+            $fqcn = $this->getClassName($model)[0];
 
             // Trigger onBefore events
             if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_SEARCH])) {
@@ -312,7 +353,7 @@ class BookKeeper
 
             return true;
         } else {
-            $this->deferredSearchAndReplace(get_class($model), $receivingId, $dotField, $search, $referredId, $referredId);
+            $this->deferredSearchAndReplace($this->getClassName($model)[0], $receivingId, $dotField, $search, $referredId, $referredId);
             return false;
         }
     }
@@ -330,7 +371,7 @@ class BookKeeper
     {
         list($morphableFqcn, $referredId) = $morph;
         if (isset($this->books[$referredId])) {
-            $fqcn = get_class($model);
+            $fqcn = $this->getClassName($model)[0];
 
             // Trigger onBefore events
             if (isset($this->onBeforeResolves[$fqcn], $this->onBeforeResolves[$fqcn][self::DEFERRED_MORPH])) {
@@ -363,7 +404,7 @@ class BookKeeper
             // Set the morphable fields with a placeholder id to circumvent NOT NULL problems
             $model->{$model->$field()->getForeignKey()} = 0;
             $model->{$model->$field()->getMorphType()} = $morphableFqcn;
-            $this->deferredMorph(get_class($model), $receivingId, $field, $morph);
+            $this->deferredMorph($this->getClassName($model)[0], $receivingId, $field, $morph);
 
             return false;
         }
@@ -626,7 +667,7 @@ class BookKeeper
     public function resolve()
     {
         foreach ($this->deferred as $fqcn => $ids) {
-            $modelFactory = $this->app->make($fqcn);
+            $modelFactory = $this->makeModel($fqcn);
 
             foreach ($ids as $id => $deferee) {
                 if (!isset($this->books[$id])) {

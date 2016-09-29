@@ -12,6 +12,7 @@ use Prewk\Seriquent\Models\Foo;
 use Prewk\Seriquent\Models\Resource;
 use Prewk\Seriquent\Models\ResourceReference;
 use Prewk\Seriquent\Models\Root;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 require_once(__DIR__ . "/Seriquent/Models/Foo.php");
 require_once(__DIR__ . "/Seriquent/Models/Bar.php");
@@ -85,6 +86,9 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
             $table->string("referable_type");
             $table->timestamps();
         });
+
+        // Clear morph map relations
+        Relation::morphMap([], false);
     }
 
     public function test_deserialize()
@@ -178,6 +182,105 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertEquals("Four", $foo2Poly->test);
     }
 
+
+    public function test_deserialize_with_morphMap()
+    {
+        // Arrange
+        Relation::morphMap([
+            "root" => "Prewk\\Seriquent\\Models\\Root",
+            "foo" => "Prewk\\Seriquent\\Models\\Foo",
+            "bar" => "Prewk\\Seriquent\\Models\\Bar",
+            "poly" => "Prewk\\Seriquent\\Models\\Poly",
+        ]);
+
+        $serialization = [
+            "root" => [
+                [
+                    "@id" => "@1",
+                    "test" => "Lorem ipsum",
+                    "bar" => "@4",
+                    "special_bar" => "@4",
+                ],
+            ],
+            "foo" => [
+                [
+                    "@id" => "@2",
+                    "test" => "Foo bar",
+                    "data" => ["a" => 1, "b" => 2, "bar_id" => "@4"],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@3",
+                    "test" => "Baz qux",
+                    "data" => ["c" => 3, "d" => 4, "foo" => ["bar" => ["id" => "@1"]]],
+                    "root" => "@1",
+                ],
+            ],
+            "bar" => [
+                [
+                    "@id" => "@4",
+                    "test" => "Test test",
+                    "root" => "@1",
+                ],
+            ],
+            "poly" => [
+                [
+                    "@id" => "@5",
+                    "test" => "One",
+                    "polyable" => ["root", "@1"],
+                ],
+                [
+                    "@id" => "@6",
+                    "test" => "Two",
+                    "polyable" => ["root", "@1"],
+                ],
+                [
+                    "@id" => "@7",
+                    "test" => "Three",
+                    "polyable" => ["foo", "@2"],
+                ],
+                [
+                    "@id" => "@8",
+                    "test" => "Four",
+                    "polyable" => ["foo", "@3"],
+                ],
+            ],
+        ];
+        $seriquent = Seriquent::make();
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+
+        // Assert
+        $root = Root::findOrFail($books["@1"]);
+
+        $this->assertEquals("Lorem ipsum", $root->test);
+        $rootPoly1 = $root->polys->get(0);
+        $rootPoly2 = $root->polys->get(1);
+        $this->assertEquals("One", $rootPoly1->test);
+        $this->assertEquals("Two", $rootPoly2->test);
+
+        $bar = $root->bar;
+        $this->assertEquals("Test test", $bar->test);
+
+        $specialBar = $root->special_bar;
+        $this->assertEquals("Test test", $specialBar->test);
+
+        $foo1 = Foo::where(["id" => $books["@2"]])->first();
+        $this->assertEquals($root->id, $foo1->root->id);
+        $this->assertEquals("Foo bar", $foo1->test);
+        $this->assertEquals(["a" => 1, "b" => 2, "bar_id" => $books["@4"]], $foo1->data);
+        $foo1Poly = $foo1->polys->first();
+        $this->assertEquals("Three", $foo1Poly->test);
+
+        $foo2 = Foo::where(["id" => $books["@3"]])->first();
+        $this->assertEquals($root->id, $foo2->root->id);
+        $this->assertEquals("Baz qux", $foo2->test);
+        $this->assertEquals(["c" => 3, "d" => 4, "foo" => ["bar" => ["id" => $root->id]]], $foo2->data);
+        $foo2Poly = $foo2->polys->first();
+        $this->assertEquals("Four", $foo2Poly->test);
+    }
+
     public function test_serialize()
     {
         // Arrange
@@ -231,6 +334,91 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
                     "@id" => "@8",
                     "test" => "Four",
                     "polyable" => ["Prewk\\Seriquent\\Models\\Foo", "@3"],
+                ],
+            ],
+        ];
+        $seriquent = Seriquent::make();
+
+        // Act
+        $books = $seriquent->deserialize($serialization);
+        $root = Root::findOrFail($books["@1"]);
+
+        // Re-serialize
+        $reserialization = $seriquent->serialize($root);
+
+        // Assert
+        // Compare the serializations
+        // Assert same amount of fqcns
+        $this->assertEquals(count($serialization), count($reserialization));
+        // Iterate and compare
+        foreach ($reserialization as $fqcn => $entities) {
+            // Assert that the same fqcns exist on both arrays
+            $this->assertArrayHasKey($fqcn, $serialization);
+            // Assert that the same amount of entities exist on both arrays for this fqcn
+            $this->assertEquals(count($serialization[$fqcn]), count($entities));
+        }
+    }
+
+    public function test_serialize_with_morphMap()
+    {
+        // Arrange
+        Relation::morphMap([
+            "root" => "Prewk\\Seriquent\\Models\\Root",
+            "foo" => "Prewk\\Seriquent\\Models\\Foo",
+            "bar" => "Prewk\\Seriquent\\Models\\Bar",
+            "poly" => "Prewk\\Seriquent\\Models\\Poly",
+        ]);
+
+        $serialization = [
+            "root" => [
+                [
+                    "@id" => "@1",
+                    "test" => "Lorem ipsum",
+                    "bar" => "@4",
+                    "special_bar" => "@4",
+                ],
+            ],
+            "foo" => [
+                [
+                    "@id" => "@2",
+                    "test" => "Foo bar",
+                    "data" => ["a" => 1, "b" => 2, "bar_id" => "@4"],
+                    "root" => "@1",
+                ],
+                [
+                    "@id" => "@3",
+                    "test" => "Baz qux",
+                    "data" => ["c" => 3, "d" => 4],
+                    "root" => "@1",
+                ],
+            ],
+            "bar" => [
+                [
+                    "@id" => "@4",
+                    "test" => "Test test",
+                    "root" => "@1",
+                ],
+            ],
+            "poly" => [
+                [
+                    "@id" => "@5",
+                    "test" => "One",
+                    "polyable" => ["root", "@1"],
+                ],
+                [
+                    "@id" => "@6",
+                    "test" => "Two",
+                    "polyable" => ["root", "@1"],
+                ],
+                [
+                    "@id" => "@7",
+                    "test" => "Three",
+                    "polyable" => ["foo", "@2"],
+                ],
+                [
+                    "@id" => "@8",
+                    "test" => "Four",
+                    "polyable" => ["foo", "@3"],
                 ],
             ],
         ];

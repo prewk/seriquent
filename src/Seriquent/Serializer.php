@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Support\Arr;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Prewk\Seriquent;
 use Prewk\Seriquent\Serialization\BookKeeper;
 
@@ -43,6 +44,11 @@ class Serializer
     private $onBeforeAddToTree;
 
     /**
+     * @var array
+     **/
+    private $revMorphMap;
+
+    /**
      * Constructor
      *
      * @param BookKeeper $bookKeeper Serialization book keeper
@@ -58,6 +64,7 @@ class Serializer
         $this->customRules = [];
         $this->onBeforeAddToTree = [];
         $this->refCount = [];
+        $this->revMorphMap = array_flip(Relation::morphMap());
     }
 
     /**
@@ -201,6 +208,19 @@ class Serializer
     }
 
     /**
+     * Gets the class name, taking eloquent morphMap into account
+     * 
+     * @param Model $model Eloquent model
+     * @return array Tuple with morph map or class name as first entry and fqcn as second
+     */
+    protected function getClassName($model)
+    {
+        $fqcn = get_class($model);
+
+        return [isset($this->revMorphMap[$fqcn]) ? $this->revMorphMap[$fqcn] : $fqcn, $fqcn];
+    }
+
+    /**
      * Get blueprint for a model
      *
      * @param Model $model Eloquent model
@@ -208,7 +228,7 @@ class Serializer
      */
     protected function getBlueprint(Model $model)
     {
-        $fqcn = get_class($model);
+        $fqcn = $this->getClassName($model)[0];
         // Overwriting blueprint?
         if (isset($this->customRules[$fqcn])) {
             if (is_callable($this->customRules[$fqcn])) {
@@ -241,7 +261,7 @@ class Serializer
      */
     public function serialize(Model $model, array $serialization = [])
     {
-        $fqcn = get_class($model);
+        $fqcn = $this->getClassName($model)[0];
         $serializedEntity = [];
 
         // Get blueprints for this model
@@ -326,9 +346,9 @@ class Serializer
                 }
             } elseif ($content instanceof Model) {
                 // The content is a model, implying a one-to-one relationship
-                $contentFqcn = get_class($content);
+                $contentFqcn = $this->getClassName($content)[0];
                 $relation = $transformer;
-                $relationName = last(explode("\\", get_class($relation)));
+                $relationName = last(explode("\\", $this->getClassName($relation)[0]));
 
                 // Handle different relationships differently
                 switch ($relationName) {
@@ -366,7 +386,7 @@ class Serializer
             } elseif ($content instanceof Collection) {
                 // The content is a Collection, implying a one-to-many relationship
                 $relation = $model->$field();
-                $relationName = last(explode("\\", get_class($relation)));
+                $relationName = last(explode("\\", $this->getClassName($relation)[0]));
 
                 switch ($relationName) {
                     case "HasMany":

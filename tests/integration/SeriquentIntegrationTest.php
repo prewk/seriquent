@@ -1265,15 +1265,21 @@ class SeriquentIntegrationTest extends PHPUnit_Framework_TestCase
         $root = Root::findOrFail($books["@1"]);
 
         // Re-serialize and trim away unreferenced Polys and Bars
-        $reserialization = $seriquent->serialize($root, [], ["Prewk\\Seriquent\\Models\\Poly", "Prewk\\Seriquent\\Models\\Bar"]);
+        $reserialization = $seriquent->serialize($root, [], ["Prewk\\Seriquent\\Models\\Poly" => function($entity, $referenceFound) {
+            // Assert that there are no references
+            $this->assertFalse($referenceFound);
+
+            // Only save poly if test equals Four
+            return $entity["test"] === "Four";
+        }, "Prewk\\Seriquent\\Models\\Bar"]);
 
         // Assert
-        // There should be no Polys left in the serialization
-        $this->assertEquals(0, count($reserialization["Prewk\\Seriquent\\Models\\Poly"]));
+        // There should be one Poly left in the serialization
+        $this->assertEquals(1, count($reserialization["Prewk\\Seriquent\\Models\\Poly"]));
+        $this->assertEquals("Four", $reserialization["Prewk\\Seriquent\\Models\\Poly"][0]["test"]);
         // There should be a Bar left, because it was referenced
         $this->assertTrue(isset($reserialization["Prewk\\Seriquent\\Models\\Bar"]));
         $this->assertTrue(isset($reserialization["Prewk\\Seriquent\\Models\\Bar"][0]));
         $this->assertEquals("Test test", $reserialization["Prewk\\Seriquent\\Models\\Bar"][0]["test"]);
     }
-
 }

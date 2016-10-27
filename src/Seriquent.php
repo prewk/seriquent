@@ -5,6 +5,7 @@
 
 namespace Prewk;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Container\Container;
 use Prewk\Seriquent\Deserialization\BookKeeper as DeserializeBookKeeper;
@@ -99,7 +100,7 @@ class Seriquent
      * @param array $trimUnreferenced Remove unreferenced entities from the serialization tree before returning it,
      *                                by providing this parameter with an array of FQCNs
      * @return array
-     * @throws \Exception
+     * @throws Exception
      */
     public function serialize(Model $model, array $customRules = [], array $trimUnreferenced = [])
     {
@@ -111,13 +112,25 @@ class Seriquent
 
         // Trim unreferenced entities?
         if (count($trimUnreferenced) > 0) {
-            // Yep, get the ref count
+            // Support both [.., "FQCN", ..] and [.., "FQCN" => Closure, ..]
+            $trimmables = [];
+            foreach ($trimUnreferenced as $key => $value) {
+                if (is_int($key) && is_string($value)) {
+                    $trimmables[] = $value;
+                } else if (is_string($key) && $value instanceof Closure) {
+                    $trimmables[] = $key;
+                } else {
+                    throw new Exception("Invalid trimUnreferenced array item given, expected int=>string or string=>closure");
+                }
+            }
+
+            // Get the ref count
             $refCount = $this->serializer->getRefCount();
             $trimmed = [];
             // Iterate through all entity types
             foreach ($serialization as $fqcn => $entities) {
                 // Look for possible trimming here?
-                if (in_array($fqcn, $trimUnreferenced)) {
+                if (in_array($fqcn, $trimmables)) {
                     // Yes
                     $trimmed[$fqcn] = [];
                     // Iterate through all the entities of this FQCN
@@ -125,7 +138,15 @@ class Seriquent
                         $id = $entity["@id"];
                         // Any refs for this id?
                         if (isset($refCount[$id])) {
-                            // Reference found - keep
+                            // Reference found - keep?
+                            if (isset($trimUnreferenced[$fqcn]) && $trimUnreferenced[$fqcn]($entity, true)) {
+                                // Callable decided it should stay
+                                $trimmed[$fqcn][] = $entity;
+                            } else {
+                                // Keep
+                                $trimmed[$fqcn][] = $entity;
+                            }
+                        } else if (isset($trimUnreferenced[$fqcn]) && $trimUnreferenced[$fqcn]($entity, false)) {
                             $trimmed[$fqcn][] = $entity;
                         }
                     }
